@@ -2,6 +2,7 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 #from socketserver import BaseServer
 import json
+from custom_diffusers import CustomDiffuser
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -22,6 +23,27 @@ class RequestHandler(BaseHTTPRequestHandler):
         )
 
         print('body:    \n', body)
+
+        prompt = body['prompt']
+
+        diffuser_handler = CustomDiffuser()
+
+        diffuser_handler.load_model( #this shouldn't run every time
+            path='./stable_diffusion_onnx',
+            provider='CPU'
+        )
+
+        diffuser_handler.generate_text2image(
+            prompt,
+            '',
+            512,
+            512,
+            10,
+            7
+        )
+
+        diffuser_handler.save_image('plane.png')
+
 
 
 HOST = 'localhost'
