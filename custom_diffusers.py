@@ -1,5 +1,6 @@
 from diffusers import OnnxStableDiffusionPipeline
 from typing import Literal
+import asyncio
 
 providers = {
     'CPU': 'CPUExecutionProvider',
@@ -42,7 +43,8 @@ class CustomDiffuser:
             negative
         ) \
             .images[0]
-        #return image
+        
+        return self.image
     
     def save_image(self, relative_path: str):
         self.image.save(relative_path)
