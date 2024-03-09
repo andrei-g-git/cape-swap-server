@@ -1,7 +1,9 @@
-from flask import Flask, request, make_response, jsonify
+from flask import Flask, request, send_file
 from flask_cors import CORS
 import json
 from custom_diffusers import CustomDiffuser
+from PIL import Image
+from io import BytesIO
 
 app = Flask(__name__)
 CORS(app)
@@ -9,31 +11,18 @@ CORS(app)
 app.debug = True
 
 
-# diffuser_handler = CustomDiffuser()
-# diffuser_handler.load_model( #this shouldn't run every time
-#     path='./stable_diffusion_onnx',
-#     provider='CPU'
-# )
-
-
 class FlaskSDServer:
-    def __init__(self, flask_app, diffusion_handler) -> None:
+    def __init__(self,  diffusion_handler):
         self.diffusion_handler = diffusion_handler
-        self.app = flask_app
 
-    def start_server(self, HOST = 'localhost', PORT = 9991):
 
+    def initialize_diffusor(self):
         self.diffusion_handler.load_model( #should be called separately...
             path='./stable_diffusion_onnx',
             provider='CPU'
         )
 
-
-        if __name__ == '__main__':
-            self.app.run(host=HOST, port=PORT)
-
-    @app.route('/diffusers', methods=['POST'])
-    def post_prompt():
+    def on_post_prompt(self):
         print('received POST request from flask server')
 
         body = json.loads(
@@ -45,22 +34,41 @@ class FlaskSDServer:
 
         prompt = body['prompt']
 
-        response_data = {'simple_response': 'got prompt:    ' + prompt + '   hopefully next time I can send you a picture! '}
-        response = make_response(jsonify(response_data))
-        print('------------------\n', response, '\n------------------')
-        print('jsonified data:   ', jsonify(response_data))
-        response.headers['Content-Type'] = 'application/json'
-
-        return response
-
-
-server = FlaskSDServer(app, CustomDiffuser())
-server.start_server('127.0.0.1', 5000)
+        image = self.diffusion_handler.generate_text2image(
+            prompt,
+            '',
+            384,
+            384,
+            10,
+            7
+        )
+        #self.diffusion_handler.save_image('generated_image.png')
 
 
-# HOST = 'localhost'
-# PORT = 9991
+        # response_data = {'simple_response': 'got prompt:    ' + prompt + '   hopefully next time I can send you a picture! '}
+        # response = make_response(jsonify(response_data))
+        # response.headers['Content-Type'] = 'application/json'
 
 
-# if __name__ == '__main__':
-#     app.run(host=HOST, port=PORT)
+        img_io = BytesIO() 
+        image.save(img_io, 'PNG', quality=75)
+        img_io.seek(0)
+
+        return send_file(img_io, mimetype='image/png')
+
+
+
+api = FlaskSDServer(CustomDiffuser())
+api.initialize_diffusor()
+
+@app.route('/diffusers', methods=['POST'])
+def post_prompt():
+    return api.on_post_prompt()
+
+
+HOST = '127.0.0.1'
+PORT = 5000
+
+
+if __name__ == '__main__':
+    app.run(host=HOST, port=PORT)
