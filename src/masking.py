@@ -1,9 +1,12 @@
 from typing import List
-from numpy import transpose, zeros, where
-from torch import device, load, no_grad, unsqueeze
+#from numpy import transpose, zeros, where
+import numpy as np
+from torch import device, load, no_grad, unsqueeze, Tensor
 from torch.nn import Module
 import torchvision.transforms as transforms
 from PIL import Image
+from PIL.Image import Image as PILImage
+from typing import Union
 import cv2
 from types_etc import Provider, SegmentName
 
@@ -53,19 +56,19 @@ class Masking:
             .argmax(0) \
 
             
-        parsing_untransposed = transpose(parsing)
+        parsing_untransposed = np.transpose(parsing)
         print(parsing_untransposed.shape)
         return parsing_untransposed
 
-    def generate_mask(self, parsing_tensor, classes:List[int]=[0]):
+    def generate_mask(self, parsing_tensor, classes:List[int]=[0]):  
         width = parsing_tensor.shape[0]
         height = parsing_tensor.shape[1]
-        human_viewable_mask = zeros((width, height))
+        human_viewable_mask = np.zeros((width, height))
 
         print(' human_viewable_mask.shape:   \n', human_viewable_mask.shape)
 
         for label in classes:
-            matches_unzipped_position_indices = where(parsing_tensor == label)
+            matches_unzipped_position_indices = np.where(parsing_tensor == label)
             for i in range(0, len(matches_unzipped_position_indices[0])):  # [0] or [1] doesn't matter both dimensions are the same length (horisontal indices and vertical indices)
 
                 x = matches_unzipped_position_indices[0][i]
@@ -73,7 +76,27 @@ class Masking:
 
                 human_viewable_mask[x, y] = 255
 
-        cv2.imwrite('mask.png', human_viewable_mask)
+        return human_viewable_mask
+    
+    def filter_contiguous_head(self, mask:PILImage | Tensor | np.ndarray[int, int]):
+
+        gray_image = np.where(mask < 1, [0], [1])
+
+        contours, _ = cv2.findContours(gray_image, cv2.RETR_FLOODFILL, cv2.CHAIN_APPROX_SIMPLE)
+        large_contours = []
+        for cnt in contours:
+            if cv2.contourArea(cnt) > 10000:
+                large_contours.append(cnt)
+
+        new_gray_image = np.zeros(gray_image.shape)
+        cv2.drawContours(new_gray_image, large_contours, 2, (255, 255, 255), cv2.FILLED)
+
+        return new_gray_image
+
+        
+                
+
+  
 
 
 
