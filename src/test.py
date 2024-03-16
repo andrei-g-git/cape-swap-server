@@ -11,4 +11,6 @@ masker = Masking(
 )
 
 masker.startup_model()
-masker.preprocess_image('../images/1.jpeg')
+tensor_with_prediction = masker.preprocess_image('../images/1.jpeg')
+parsing_tensor = masker.parse_image(tensor_with_prediction)
+masker.generate_mask(parsing_tensor, [1, 17])

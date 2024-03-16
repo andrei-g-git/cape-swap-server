@@ -238,6 +238,9 @@ def evaluate(
             parsing = out.squeeze(0).cpu().numpy().argmax(0)
 
 
+            print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n PARSING SHAPE:      ', parsing.shape, ' \n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+
             ######################################################################################
 
             #   ^   the image gets transposed by the to_tensor() function, I have to unfuck it here, dunno if it's gonna have brick something down the road
@@ -426,7 +429,7 @@ if __name__ == "__main__":
         width=1024, 
         height=1338, 
         mediapipe_predict=mediapipe_predict,
-        num_images=10
+        num_images=1
     )
 
 

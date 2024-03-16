@@ -1,8 +1,11 @@
+from typing import List
+from numpy import transpose, zeros, where
 from torch import device, load, no_grad, unsqueeze
 from torch.nn import Module
 import torchvision.transforms as transforms
 from PIL import Image
-from types_etc import Provider
+import cv2
+from types_etc import Provider, SegmentName
 
 class Masking:
     def __init__(
@@ -38,8 +41,43 @@ class Masking:
         expanded_tensor = unsqueeze(composed_image, 0)
         expanded_tensor.to(self.device)
         out = self.classifier(expanded_tensor)[0]
-
         print('output size:   ', out.shape)
+        return out
+    
+    def parse_image(self, tensor_with_prediction):
+        parsing = tensor_with_prediction \
+            .squeeze(0) \
+            .cpu() \
+            .detach() \
+            .numpy() \
+            .argmax(0) \
+
+            
+        parsing_untransposed = transpose(parsing)
+        print(parsing_untransposed.shape)
+        return parsing_untransposed
+
+    def generate_mask(self, parsing_tensor, classes:List[int]=[0]):
+        width = parsing_tensor.shape[0]
+        height = parsing_tensor.shape[1]
+        human_viewable_mask = zeros((width, height))
+
+        print(' human_viewable_mask.shape:   \n', human_viewable_mask.shape)
+
+        for label in classes:
+            matches_unzipped_position_indices = where(parsing_tensor == label)
+            for i in range(0, len(matches_unzipped_position_indices[0])):  # [0] or [1] doesn't matter both dimensions are the same length (horisontal indices and vertical indices)
+
+                x = matches_unzipped_position_indices[0][i]
+                y = matches_unzipped_position_indices[1][i]
+
+                human_viewable_mask[x, y] = 255
+
+        cv2.imwrite('mask.png', human_viewable_mask)
+
+
+
+
 
 
 
