@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 #from numpy import transpose, zeros, where
 import numpy as np
 from torch import device, load, no_grad, unsqueeze, Tensor
@@ -8,6 +8,7 @@ from PIL import Image
 from PIL.Image import Image as PILImage
 from typing import Union
 import cv2
+import mediapipe as mp
 from types_etc import Provider, SegmentName
 
 class Masking:
@@ -78,7 +79,58 @@ class Masking:
 
         return human_viewable_mask
     
-    def filter_contiguous_head(self, mask:PILImage | Tensor | np.ndarray[int, int]):
+
+    def get_second_opinion_as_bbox(self, image: PILImage | np.ndarray, mediapipe_model_index:int=1, confidence:float=0.6) -> list[int | float] | tuple[int | float]:
+
+        img_width, img_height = image.size
+
+        mp_face_detection = mp.solutions.face_detection
+        draw_util = mp.solutions.drawing_utils
+
+        img_array = np.array(image)
+
+        with mp_face_detection.FaceDetection(
+            model_selection=mediapipe_model_index, 
+            min_detection_confidence=confidence
+        ) as face_detector:
+            pred = face_detector.process(img_array)
+
+        if pred.detections is None:
+            return []
+
+        preview_array = img_array.copy()
+
+        bboxes = []
+        for detection in pred.detections:
+            draw_util.draw_detection(preview_array, detection)
+
+            bbox = detection.location_data.relative_bounding_box
+            x1 = bbox.xmin * img_width
+            y1 = bbox.ymin * img_height
+            w = bbox.width * img_width
+            h = bbox.height * img_height
+            x2 = x1 + w
+            y2 = y1 + h
+
+            bboxes.append([x1, y1, x2, y2])
+
+
+        preview = Image.fromarray(preview_array)    
+
+        cv2.imwrite('outputs/mediapipe_prediction_' + str(int(x1)) + '.png', preview_array)
+
+
+        ################################
+        #  For some reason bbox extraction on most images fails, but the masks output just fine, 
+        #  so if I can't get it to work I should just extract the bboxes from the masks...
+        ############################################
+
+        return bboxes[0] #assume there's only 1 person
+
+
+
+
+    def filter_contiguous_head(self, mask:PILImage | Tensor | np.ndarray, bbox: list[int | float] | tuple[int | float]): #, suspected_contour_index=2):
 
         gray_image = np.where(mask < 1, [0], [1])
 
@@ -86,10 +138,20 @@ class Masking:
         large_contours = []
         for cnt in contours:
             if cv2.contourArea(cnt) > 10000:
-                large_contours.append(cnt)
+                x, y, w, h = cv2.boundingRect(cnt)
+                x2 = x + w
+                y2 = y + h
+
+                left = max(x, bbox[0])
+                right = min(x2, bbox[2])
+                top = max(y, bbox[1])
+                bottom = min(y2, bbox[3])
+    
+                if left < right and top < bottom:
+                    large_contours.append(cnt)
 
         new_gray_image = np.zeros(gray_image.shape)
-        cv2.drawContours(new_gray_image, large_contours, 2, (255, 255, 255), cv2.FILLED)
+        cv2.drawContours(new_gray_image, large_contours, 0, (255, 255, 255), cv2.FILLED)
 
         return new_gray_image
 

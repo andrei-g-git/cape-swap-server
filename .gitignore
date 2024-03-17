@@ -4,6 +4,7 @@ face_parsing_PyTorch/*
 face_parsing_PyTorch/.gitkeep
 images
 __pycache__
+src/output
 
 #files
 ort_nightly_directml-1.13.0.dev20220908001-cp310-cp310-win_amd64.whl

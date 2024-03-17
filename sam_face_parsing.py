@@ -181,11 +181,6 @@ def vis_parsing_maps(im, parsing_anno, stride, save_im=False, save_path='../imag
         #test
         cv2.imwrite(image_path_no_extension +'_ps_rgb.png', pseudo_rgb_mask)
 
-        with open("zzz-bbox-thing-%s.txt" % os.path.basename(image_path_no_extension), "w") as text_file:
-            #string_to_write = " ".join(map(str, [bbox_normally, '\n', bbox_at_conditional]))
-            string_to_write = bbox_normally + '\n' + bbox_at_conditional
-            #print('string to write:    ', string_to_write)
-            text_file.write(string_to_write)
 
     # return vis_im
 
@@ -429,7 +424,7 @@ if __name__ == "__main__":
         width=1024, 
         height=1338, 
         mediapipe_predict=mediapipe_predict,
-        num_images=1
+        num_images=10
     )
 
 
