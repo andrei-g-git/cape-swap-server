@@ -1,15 +1,28 @@
-from typing import List, Any
+from functools import partial
+from typing import List, Any, Optional
 #from numpy import transpose, zeros, where
+from dataclasses import dataclass, field
 import numpy as np
 from torch import device, load, no_grad, unsqueeze, Tensor
 from torch.nn import Module
 import torchvision.transforms as transforms
-from PIL import Image
+from PIL import Image, ImageDraw
 from PIL.Image import Image as PILImage
 from typing import Union
 import cv2
 import mediapipe as mp
 from types_etc import Provider, SegmentName
+
+
+np.set_printoptions(precision=2)
+
+#shouldn't need this but it doen't generate all the bboxes and masks if I don't use it for some reason
+@dataclass
+class PredictOutput:
+    bboxes: list[list[int | float]] = field(default_factory=list)
+    masks: list[Image.Image] = field(default_factory=list)
+    preview: Optional[Image.Image] = None
+    
 
 class Masking:
     def __init__(
@@ -97,6 +110,7 @@ class Masking:
 
         if pred.detections is None:
             return []
+            #return PredictOutput()
 
         preview_array = img_array.copy()
 
@@ -125,22 +139,36 @@ class Masking:
         #  so if I can't get it to work I should just extract the bboxes from the masks...
         ############################################
 
+
+        #delete after test, only use pure methods (object properties are fine)
+
+        # masks = create_mask_from_bbox(bboxes, (img_width, img_height))
+        # print('MASKS:   ', masks)
+
         return bboxes[0] #assume there's only 1 person
+
+        #return PredictOutput(bboxes, masks, None)
 
 
 
 
     def filter_contiguous_head(self, mask:PILImage | Tensor | np.ndarray, bbox: list[int | float] | tuple[int | float]): #, suspected_contour_index=2):
 
-        gray_image = np.where(mask < 1, [0], [1])
+        mask_untransposed = np.transpose(mask)
+
+        gray_image = np.where(mask_untransposed < 1, [0], [1])
 
         contours, _ = cv2.findContours(gray_image, cv2.RETR_FLOODFILL, cv2.CHAIN_APPROX_SIMPLE)
         large_contours = []
+
+        delete_these_bboxes = []
         for cnt in contours:
             if cv2.contourArea(cnt) > 10000:
                 x, y, w, h = cv2.boundingRect(cnt)
                 x2 = x + w
                 y2 = y + h
+
+                delete_these_bboxes.append([x, y, x2, y2])
 
                 left = max(x, bbox[0])
                 right = min(x2, bbox[2])
@@ -150,10 +178,150 @@ class Masking:
                 if left < right and top < bottom:
                     large_contours.append(cnt)
 
+
         new_gray_image = np.zeros(gray_image.shape)
         cv2.drawContours(new_gray_image, large_contours, 0, (255, 255, 255), cv2.FILLED)
 
         return new_gray_image
+    
+
+        # color_mask = np.empty((mask_untransposed.shape[0], mask_untransposed.shape[1], 3), dtype=np.uint8)
+        # color_mask[:, :, :] = mask_untransposed[:, :, np.newaxis]
+
+        # cv2.rectangle(color_mask, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 5)
+        # for rect in delete_these_bboxes:
+        #     cv2.rectangle(color_mask, (int(rect[0]), int(rect[1])), (int(rect[2]), int(rect[3])), (255, 0, 0), 5)
+
+        # return color_mask
+
+    
+    
+
+    #delete
+    def test_mediapipe_predictions(self, image:PILImage):
+        return mediapipe_predict("mediapipe_face_full", image)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#delete
+def mediapipe_predict(
+    model_type: str, image: Image.Image, confidence: float = 0.6#0.3
+) -> PredictOutput:
+    mapping = {
+        "mediapipe_face_short": partial(mediapipe_face_detection, 0),
+        "mediapipe_face_full": partial(mediapipe_face_detection, 1),
+        "mediapipe_face_mesh": mediapipe_face_mesh,
+        "mediapipe_face_mesh_eyes_only": mediapipe_face_mesh_eyes_only,
+    }
+    if model_type in mapping:
+        func = mapping[model_type]
+        return func(image, confidence)
+    msg = f"[-] ADetailer: Invalid mediapipe model type: {model_type}, Available: {list(mapping.keys())!r}"
+    raise RuntimeError(msg)
+
+
+def mediapipe_face_detection(
+    model_type: int, image: Image.Image, confidence: float = 0.6#0.3
+) -> PredictOutput:
+    #import mediapipe as mp
+
+    img_width, img_height = image.size
+
+    mp_face_detection = mp.solutions.face_detection
+    draw_util = mp.solutions.drawing_utils
+
+    img_array = np.array(image)
+
+    with mp_face_detection.FaceDetection(
+        model_selection=model_type, min_detection_confidence=confidence
+    ) as face_detector:
+        pred = face_detector.process(img_array)
+
+    if pred.detections is None:
+        return PredictOutput()
+
+    preview_array = img_array.copy()
+
+    bboxes = []
+    for detection in pred.detections:
+        draw_util.draw_detection(preview_array, detection)
+
+        bbox = detection.location_data.relative_bounding_box
+        x1 = bbox.xmin * img_width
+        y1 = bbox.ymin * img_height
+        w = bbox.width * img_width
+        h = bbox.height * img_height
+        x2 = x1 + w
+        y2 = y1 + h
+
+        bboxes.append([x1, y1, x2, y2])
+
+    _w, _h = image.size
+    masks = create_mask_from_bbox(bboxes, image.size)
+    #print('mask_1 = masks[0]-- mask_1 shape:   \n', mask_1.size, \n ......and w, h:  ', _w, ' * ', _h)
+    preview = Image.fromarray(preview_array)
+
+    return PredictOutput(bboxes=bboxes, masks=masks, preview=preview)
+
+
+def mediapipe_face_mesh():
+    pass
+        
+        
+def mediapipe_face_mesh_eyes_only():
+    pass
+
+
+def create_mask_from_bbox(
+    bboxes: list[list[float]], shape: tuple[int, int]
+) -> list[Image.Image]:
+    """
+    Parameters
+    ----------
+        bboxes: list[list[float]]
+            list of [x1, y1, x2, y2]
+            bounding boxes
+        shape: tuple[int, int]
+            shape of the image (width, height)
+
+    Returns
+    -------
+        masks: list[Image.Image]
+        A list of masks
+
+    """
+    masks = []
+    for bbox in bboxes:
+        mask = Image.new("L", shape, 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.rectangle(bbox, fill=255)
+        masks.append(mask)
+    return masks
+
 
         
                 
