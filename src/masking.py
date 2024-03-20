@@ -194,7 +194,95 @@ class Masking:
 
         # return color_mask
 
+
+
+    def filter_biggest_segment(self, mask):
+
+        mask_2d = np.empty((mask.shape[0], mask.shape[1]))
+
+        mask_2d[:, :] = mask[:, :, 0]
+
+        binary_image = np.where(mask_2d < 1, [0], [1])
+        print('BINARY IMAGE SHAPE:  ', binary_image.shape)
+        print("MAX COLOR VALUE MASK 2D:   ", np.amax(mask_2d))
+        contours, _ = cv2.findContours(binary_image, cv2.RETR_FLOODFILL, cv2.CHAIN_APPROX_SIMPLE)
+
+        contour_areas = [cv2.contourArea(cnt) for cnt in contours] #hopefully this keeps the same order...
+
+        max_index = contour_areas.index(max(contour_areas))
+        cleaner_selfie_contour = contours[max_index]
+
+        new_gray_image = np.zeros(binary_image.shape)
+        cv2.drawContours(new_gray_image, [cleaner_selfie_contour], 0, (255, 255, 255), cv2.FILLED)
+
+        # ^^^ this fills up the new mask where there are desirable black gaps
+        # instead of figuring out how to fix it with the tools above it could be more 
+        # straight forward to add the black gaps back into the mask
+
+        fixed_mask = np.empty((mask.shape[0], mask.shape[1], 3))
+        fixed_mask[:, :, :] = new_gray_image[:, :, np.newaxis]
+
+        sampled_once = False
+        for i in range(len(mask)):
+            for j in range(len(mask[i])):
+                if mask_2d[i, j] < 1:
+                    fixed_mask[i, j, :] = 0
+                    # if((i % 10 == 0) and (j % 10 == 0)):
+                    #     print('mask 2d idx', i, '  ', j, ':   ', mask_2d[i, j])
+ 
+                # else:
+                #     # if((i % 10 == 0) and (j % 10 == 0)):
+                #     #     print('mask 2d idx', i, '  ', j, ':   ', mask_2d[i, j])
+                #     fixed_mask[i, j, :] = 255
+                #     sampled_once = True
+
+
+        return fixed_mask
+
+
+    def mask_whole_person(self, image_file):
+        mp_drawing = mp.solutions.drawing_utils
+        mp_selfie_segmentation = mp.solutions.selfie_segmentation
+
+        #with mp_selfie_segmentation.SelfieSegmentation(model_selection=0) as selfie_segmentation:
+        segmentation = mp_selfie_segmentation.SelfieSegmentation(model_selection=0)
+        
+        image = cv2.imread(image_file)
+        height, width, _ = image.shape  #height first????
+        print("is the height read first? shape :    ", image.shape)
+        results = segmentation.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+
+        # To improve segmentation around boundaries, consider applying a joint
+        # bilateral filter to "results.segmentation_mask" with "image".
+
+        smoothed_mask = cv2.bilateralFilter(results.segmentation_mask, 9, 40, 40)
+        condition = np.stack((smoothed_mask,) * 3, axis=-1) > 0.1
+
+
+        pseudo_mask = np.where(condition, (255, 255, 255), (0, 0, 0))
+        # mask = np.empty((pseudo_mask.shape[0], pseudo_mask.shape[1]))
+
+        # #mask[:, :] = pseudo_mask[:, :, 0]
+
+        # for i in range(len(mask)):
+        #     for j in range(len(mask[i])):
+        #         mask[i, j] = pseudo_mask[i, j, 0]
+
+        return pseudo_mask
+
     
+    def decapitate(self, person_mask, head_mask):
+        #mwhahahahaha
+
+        pass
+
+
+
+
+
+
+
+
     
 
     #delete
