@@ -179,20 +179,15 @@ class Masking:
                     large_contours.append(cnt)
 
 
-        new_gray_image = np.zeros(gray_image.shape)
+        new_gray_image = np.zeros((gray_image.shape[0], gray_image.shape[1], 3))
         cv2.drawContours(new_gray_image, large_contours, 0, (255, 255, 255), cv2.FILLED)
 
-        return new_gray_image
-    
+        # the selfie mask that this mask is supposed to substract white pixels from is made from a smoothed image
+        # and is effectively dilated, so I'll have to dilate the head mask too
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+        dilated_head_and_hair_mask = cv2.dilate(new_gray_image, kernel, iterations=1)
 
-        # color_mask = np.empty((mask_untransposed.shape[0], mask_untransposed.shape[1], 3), dtype=np.uint8)
-        # color_mask[:, :, :] = mask_untransposed[:, :, np.newaxis]
-
-        # cv2.rectangle(color_mask, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 5)
-        # for rect in delete_these_bboxes:
-        #     cv2.rectangle(color_mask, (int(rect[0]), int(rect[1])), (int(rect[2]), int(rect[3])), (255, 0, 0), 5)
-
-        # return color_mask
+        return dilated_head_and_hair_mask
 
 
 
@@ -274,7 +269,15 @@ class Masking:
     def decapitate(self, person_mask, head_mask):
         #mwhahahahaha
 
-        pass
+        w = person_mask.shape[0]
+        h = person_mask.shape[1]
+
+        for i in range(w):
+            for j in range(h):
+                if head_mask[i, j, 0] > 0:
+                    person_mask[i, j, :] = 0 # should't I modify a copy of this instead?
+
+        return person_mask 
 
 
 
