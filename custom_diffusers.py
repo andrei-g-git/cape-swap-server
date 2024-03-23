@@ -1,4 +1,4 @@
-from diffusers import OnnxStableDiffusionPipeline
+from diffusers import OnnxStableDiffusionPipeline, OnnxStableDiffusionInpaintPipeline
 from typing import Literal
 from transformers import SamModel, SamProcessor
 from PIL import Image
@@ -18,10 +18,18 @@ PROVIDER = Literal['CPU','DML','CUDA', 'cpu', 'cuda'] #fuck python
 
 
 class CustomDiffuser:
-    def __init__(self):
+    def __init__(self, provider:Literal['CPUExecutionProvider', 'DmlExecutionProvider']='CPUExecutionProvider'):
+        """
+        Parameters
+        -----------
+            provider:str
+                str of ['CPUExecutionProvider', 'DmlExecutionProvider']
+
+        """
         self.pipe = ''
         self.image = None
         self.sam = None
+        self.provider = provider
 
     def load_model(
             self, 
@@ -52,6 +60,39 @@ class CustomDiffuser:
         
         return self.image
     
+    def inpaint_with_prompt(
+            self, 
+            image: cv2.typing.MatLike, 
+            mask: cv2.typing.MatLike,
+            prompt: str = '', 
+            negative: str = '',
+            height: int = 512, 
+            width: int = 512, 
+            steps: int = 10, 
+            cfg: float =  7.5,
+            noise: float = 0.75
+    ):
+        pipe = OnnxStableDiffusionInpaintPipeline.from_pretrained(
+            './stable_diffusion_onnx_inpainting',
+            provider=self.provider,
+            revision='onnx',
+            safety_checker=None
+        )
+
+        image = image.resize((width, height))
+        mask = mask.resize((width, height))
+
+        output_image = pipe(
+            prompt,
+            image,
+            mask,
+            strength=noise,
+            guidance_scale=cfg
+        )
+
+        return output_image
+
+
     def save_image(self, relative_path: str):
         self.image.save(relative_path)
 
