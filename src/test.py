@@ -3,8 +3,12 @@ from torch import load, device
 import cv2
 from PIL import Image
 from masking import Masking
+import numpy as np
+
 sys.path.append('../face_parsing_PyTorch/') 
 from model import BiSeNet
+
+from custom_diffusers import CustomDiffuser
 
 masker = Masking(
     'cpu',
@@ -14,7 +18,15 @@ masker = Masking(
 
 masker.startup_model()
 dir = 'C:/work/py/sd_directml/images'
-for image_name in os.listdir(dir)[:3]:
+
+diffuser = CustomDiffuser('CPUExecutionProvider')
+
+# should only load once
+diffuser.load_model_for_inpainting('C:/work/py/sd_directml/stable_diffusion_onnx_inpainting') #apparently it won't take '..' characters so I can't pass the relative path...
+
+
+#for image_name in os.listdir(dir)[:3]:
+for image_name in os.listdir(dir)[1:3]:
     image_path = os.path.join(dir, image_name)
 
     tensor_with_prediction = masker.preprocess_image(image_path)
@@ -45,6 +57,28 @@ for image_name in os.listdir(dir)[:3]:
         #print("cleaner mask shape >>>    ", cleaner_mask.shape)
         image_path_no_extension = os.path.splitext(image_path)[0]
         cv2.imwrite("outputs/selfie_%s_III.png" % os.path.basename(image_path_no_extension), headless_selfie_mask)
+
+        print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n HEADLESS SELFIE MASK:  \n', headless_selfie_mask.dtype)
+
+
+
+        output = diffuser.inpaint_with_prompt(
+            #cv2.imread(image_path),
+            Image.open(image_path),
+            Image.fromarray(headless_selfie_mask.astype(np.uint8)),
+            'a picture of a woman dressed in a lara crof costume, full body shot, front view, tank top, shorts, tactical straps, pistol',
+            '',
+            196, #256, #384,
+            294, #384, #576
+        )
+
+        #np_output = np.asarray(output, dtype=np.uint8)
+
+        #cv2.imwrite("outputs/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension), np_output)
+
+        output.save("outputs/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension))
+
+
 
 
 
