@@ -3,12 +3,11 @@ from typing import List, Any, Optional
 #from numpy import transpose, zeros, where
 from dataclasses import dataclass, field
 import numpy as np
-from torch import device, load, no_grad, unsqueeze, Tensor
+from torch import device, unsqueeze, Tensor
 from torch.nn import Module
 import torchvision.transforms as transforms
 from PIL import Image, ImageDraw
 from PIL.Image import Image as PILImage
-from typing import Union
 import cv2
 import mediapipe as mp
 from types_etc import Provider, SegmentName
@@ -71,7 +70,7 @@ class Masking:
 
             
         parsing_untransposed = np.transpose(parsing)
-        print(parsing_untransposed.shape)
+        #print(parsing_untransposed.shape)
         return parsing_untransposed
 
     def generate_mask(self, parsing_tensor, classes:List[int]=[0]):  
@@ -129,7 +128,7 @@ class Masking:
             bboxes.append([x1, y1, x2, y2])
 
 
-        preview = Image.fromarray(preview_array)    
+        #preview = Image.fromarray(preview_array)    
 
         cv2.imwrite('outputs/mediapipe_prediction_' + str(int(x1)) + '.png', preview_array)
 
@@ -198,8 +197,7 @@ class Masking:
         mask_2d[:, :] = mask[:, :, 0]
 
         binary_image = np.where(mask_2d < 1, [0], [1])
-        print('BINARY IMAGE SHAPE:  ', binary_image.shape)
-        print("MAX COLOR VALUE MASK 2D:   ", np.amax(mask_2d))
+
         contours, _ = cv2.findContours(binary_image, cv2.RETR_FLOODFILL, cv2.CHAIN_APPROX_SIMPLE)
 
         contour_areas = [cv2.contourArea(cnt) for cnt in contours] #hopefully this keeps the same order...
@@ -212,25 +210,15 @@ class Masking:
 
         # ^^^ this fills up the new mask where there are desirable black gaps
         # instead of figuring out how to fix it with the tools above it could be more 
-        # straight forward to add the black gaps back into the mask
+        # straight forward to add the black gaps back into the mask from the old mask
 
         fixed_mask = np.empty((mask.shape[0], mask.shape[1], 3))
         fixed_mask[:, :, :] = new_gray_image[:, :, np.newaxis]
 
-        sampled_once = False
         for i in range(len(mask)):
             for j in range(len(mask[i])):
                 if mask_2d[i, j] < 1:
                     fixed_mask[i, j, :] = 0
-                    # if((i % 10 == 0) and (j % 10 == 0)):
-                    #     print('mask 2d idx', i, '  ', j, ':   ', mask_2d[i, j])
- 
-                # else:
-                #     # if((i % 10 == 0) and (j % 10 == 0)):
-                #     #     print('mask 2d idx', i, '  ', j, ':   ', mask_2d[i, j])
-                #     fixed_mask[i, j, :] = 255
-                #     sampled_once = True
-
 
         return fixed_mask
 

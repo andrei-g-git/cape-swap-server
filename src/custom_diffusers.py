@@ -1,22 +1,7 @@
 from diffusers import OnnxStableDiffusionPipeline, OnnxStableDiffusionInpaintPipeline
 from typing import Literal
-#from transformers import SamModel, SamProcessor
-#from PIL import Image
-#from torch import no_grad
 from PIL import Image
 import cv2
-import numpy as np
-#import torchvision.transforms as tv_tr
-providers = {
-    'CPU': 'CPUExecutionProvider',
-    'cpu': 'CPUExecutionProvider',
-    'DML': 'DmlExecutionProvider',
-    'CUDA': 'n/a',
-    'cuda': 'n/a'
-}
-
-PROVIDER = Literal['CPU','DML','CUDA', 'cpu', 'cuda'] #fuck python
-
 
 
 class CustomDiffuser:
@@ -38,25 +23,25 @@ class CustomDiffuser:
             self, 
             path: str = '../stable_diffusion_onnx', 
             safety_checker=None
-        ):
-        #self.pipe = OnnxStableDiffusionPipeline.from_pretrained(path, provider=providers[provider], safety_checker=safety_checker)
+    ):
+
         self.pipe_text2image = OnnxStableDiffusionPipeline.from_pretrained(path, provider=self.provider,safety_checker=safety_checker)
 
     def load_model_for_inpainting(
             self, 
             path: str = '../stable_diffusion_onnx_inpainting', 
             safety_checker=None
-        ):
+    ):
         self.pipe_inpaint = OnnxStableDiffusionInpaintPipeline.from_pretrained(path, provider=self.provider, revision='onnx', safety_checker=safety_checker)        
 
     def generate_text2image(
-         self,
-         prompt: str = '', 
-         negative: str = '',
-         height: int = 512, 
-         width: int = 512, 
-         steps: int = 10, 
-         cfg: float =  7.5
+        self,
+        prompt: str = '', 
+        negative: str = '',
+        height: int = 512, 
+        width: int = 512, 
+        steps: int = 10, 
+        cfg: float =  7.5
     ):
         self.image = self.pipe(
             prompt, 
@@ -74,20 +59,15 @@ class CustomDiffuser:
             self, 
             image: cv2.typing.MatLike | Image.Image, # sd doesn't really take MatLike so there's no real point having the posibility
             mask: cv2.typing.MatLike | Image.Image,
+            height: int, 
+            width: int,             
             prompt: str = '', 
             negative: str = '',
-            height: int = 512, 
-            width: int = 512, 
             steps: int = 10, 
             cfg: float =  7.5,
             noise: float = 0.75
     ):
-        # pipe = OnnxStableDiffusionInpaintPipeline.from_pretrained(
-        #     '../stable_diffusion_onnx_inpainting', #don't hardcode
-        #     provider=self.provider,
-        #     revision='onnx',
-        #     safety_checker=None
-        # )
+
         pipe = self.pipe_inpaint
 
         image = image.resize((width, height))
