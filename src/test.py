@@ -25,26 +25,20 @@ def test():
     masker.startup_model()
     dir = 'C:/work/py/sd_directml/images'
 
-    diffuser = CustomDiffuser('CPUExecutionProvider')
 
-    # should only load once
-    diffuser.load_model_for_inpainting('C:/work/py/sd_directml/stable_diffusion_onnx_inpainting') #apparently it won't take '..' characters so I can't pass the relative path...
+    # diffuser = CustomDiffuser('CPUExecutionProvider')
+    # diffuser.load_model_for_inpainting('C:/work/py/sd_directml/stable_diffusion_onnx_inpainting') #apparently it won't take '..' characters
 
 
-    #for image_name in os.listdir(dir)[:3]:
-    for image_name in os.listdir(dir)[1:3]:
+    for image_name in os.listdir(dir)[:10]:
+    #for image_name in os.listdir(dir)[1:3]:
         image_path = os.path.join(dir, image_name)
 
         tensor_with_prediction = masker.preprocess_image(image_path)
         parsing_tensor = masker.parse_image(tensor_with_prediction)
         print('PARSING TENSOR SHAPE:   ', parsing_tensor.shape)
         mask = masker.generate_mask(parsing_tensor, [1, 17])
-        #bbox = masker.get_second_opinion_as_bbox(Image.open(image_path), 0.6)
-        #prediction_outputs = masker.get_second_opinion_as_bbox(Image.open(image_path), 0.6)
-
-        #no idea why this works and my implementation doesn't
-        prediction_outputs = masker.test_mediapipe_predictions(Image.open(image_path))
-        bbox = prediction_outputs.bboxes[0]
+        bbox = masker.get_second_opinion_as_bbox(Image.open(image_path), 1, 0.6)
 
 
         if len(bbox):
@@ -64,28 +58,20 @@ def test():
             image_path_no_extension = os.path.splitext(image_path)[0]
             cv2.imwrite("outputs/selfie_%s_III.png" % os.path.basename(image_path_no_extension), headless_selfie_mask)
 
-            print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n HEADLESS SELFIE MASK:  \n', headless_selfie_mask.dtype)
 
+            # output = diffuser.inpaint_with_prompt(
+            #     Image.open(image_path),
+            #     Image.fromarray(headless_selfie_mask.astype(np.uint8)),
+            #     288,#576, #height first 
+            #     192,#384                
+            #     'a picture of a man dressed in a darth vader costume, full body shot, front view, light saber',
+            #     ''
+            # )
 
+            # print('OUTPUT:   ', output)
+            # print('OUTPUT TYPE:  ', type(output))
 
-            output = diffuser.inpaint_with_prompt(
-                Image.open(image_path),
-                Image.fromarray(headless_selfie_mask.astype(np.uint8)),
-                288,#576, #height first 
-                192,#384                
-                'a picture of a man dressed in a darth vader costume, full body shot, front view, light saber',
-                ''
-            )
-
-            #np_output = np.asarray(output, dtype=np.uint8)
-
-            #cv2.imwrite("outputs/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension), np_output)
-
-            print('OUTPUT:   ', output)
-            print('OUTPUT TYPE:  ', type(output))
-            #print('OUTPUT SHAPE:  ', output.shape if type(output) == np.ndarray else output.size)
-
-            output.images[0].save("outputs/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension))
+            # output.images[0].save("outputs/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension))
 
 
 
@@ -107,9 +93,9 @@ if __name__ == '__main__':
     test()
 
     # start "number of cores" processes
-    pool = Pool(None, limit_cpu)
-    for p in pool.imap(some_callback, range(10**8)):
-        pass
+    # pool = Pool(None, limit_cpu)
+    # for p in pool.imap(some_callback, range(10**8)):
+    #     pass
 
 
 

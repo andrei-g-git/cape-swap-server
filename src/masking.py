@@ -1,6 +1,5 @@
 from functools import partial
-from typing import List, Any, Optional
-#from numpy import transpose, zeros, where
+from typing import List, Optional
 from dataclasses import dataclass, field
 import numpy as np
 from torch import device, unsqueeze, Tensor
@@ -10,19 +9,12 @@ from PIL import Image, ImageDraw
 from PIL.Image import Image as PILImage
 import cv2
 import mediapipe as mp
-from types_etc import Provider, SegmentName
+from types_etc import Provider
 
 
 np.set_printoptions(precision=2)
 
-#shouldn't need this but it doen't generate all the bboxes and masks if I don't use it for some reason
-@dataclass
-class PredictOutput:
-    bboxes: list[list[int | float]] = field(default_factory=list)
-    masks: list[Image.Image] = field(default_factory=list)
-    preview: Optional[Image.Image] = None
     
-
 class Masking:
     def __init__(
             self, 
@@ -92,7 +84,7 @@ class Masking:
         return human_viewable_mask
     
 
-    def get_second_opinion_as_bbox(self, image: PILImage | np.ndarray, mediapipe_model_index:int=1, confidence:float=0.6) -> list[int | float] | tuple[int | float]:
+    def get_second_opinion_as_bbox(self, image: PILImage | np.ndarray, mediapipe_model_index:int=1, confidence:float=0.6) -> list[int | float] | tuple[int | float] | PredictOutput:
 
         img_width, img_height = image.size
 
@@ -109,8 +101,7 @@ class Masking:
 
         if pred.detections is None:
             return []
-            #return PredictOutput()
-
+ 
         preview_array = img_array.copy()
 
         bboxes = []
@@ -127,27 +118,7 @@ class Masking:
 
             bboxes.append([x1, y1, x2, y2])
 
-
-        #preview = Image.fromarray(preview_array)    
-
-        cv2.imwrite('outputs/mediapipe_prediction_' + str(int(x1)) + '.png', preview_array)
-
-
-        ################################
-        #  For some reason bbox extraction on most images fails, but the masks output just fine, 
-        #  so if I can't get it to work I should just extract the bboxes from the masks...
-        ############################################
-
-
-        #delete after test, only use pure methods (object properties are fine)
-
-        # masks = create_mask_from_bbox(bboxes, (img_width, img_height))
-        # print('MASKS:   ', masks)
-
         return bboxes[0] #assume there's only 1 person
-
-        #return PredictOutput(bboxes, masks, None)
-
 
 
 
@@ -241,15 +212,7 @@ class Masking:
         smoothed_mask = cv2.bilateralFilter(results.segmentation_mask, 9, 40, 40)
         condition = np.stack((smoothed_mask,) * 3, axis=-1) > 0.1
 
-
         pseudo_mask = np.where(condition, (255, 255, 255), (0, 0, 0))
-        # mask = np.empty((pseudo_mask.shape[0], pseudo_mask.shape[1]))
-
-        # #mask[:, :] = pseudo_mask[:, :, 0]
-
-        # for i in range(len(mask)):
-        #     for j in range(len(mask[i])):
-        #         mask[i, j] = pseudo_mask[i, j, 0]
 
         return pseudo_mask
 
@@ -276,9 +239,35 @@ class Masking:
 
     
 
+
+    
+
+
+
+
     #delete
     def test_mediapipe_predictions(self, image:PILImage):
-        return mediapipe_predict("mediapipe_face_full", image)
+        #return mediapipe_predict("mediapipe_face_full", image)
+        return mediapipe_face_detection(1, image, 0.6)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
 
 
@@ -289,20 +278,11 @@ class Masking:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+@dataclass
+class PredictOutput:
+    bboxes: list[list[int | float]] = field(default_factory=list)
+    masks: list[Image.Image] = field(default_factory=list)
+    preview: Optional[Image.Image] = None
 
 
 
