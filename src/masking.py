@@ -84,7 +84,7 @@ class Masking:
         return human_viewable_mask
     
 
-    def get_second_opinion_as_bbox(self, image: PILImage | np.ndarray, mediapipe_model_index:int=1, confidence:float=0.6) -> list[int | float] | tuple[int | float] | PredictOutput:
+    def get_second_opinion_as_bbox(self, image: PILImage | np.ndarray, mediapipe_model_index:int=1, confidence:float=0.6) -> list[int | float] | tuple[int | float]: # | PredictOutput:
 
         img_width, img_height = image.size
 

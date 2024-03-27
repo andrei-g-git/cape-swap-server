@@ -32,7 +32,8 @@ class CustomDiffuser:
             path: str = '../stable_diffusion_onnx_inpainting', 
             safety_checker=None
     ):
-        self.pipe_inpaint = OnnxStableDiffusionInpaintPipeline.from_pretrained(path, provider=self.provider, revision='onnx', safety_checker=safety_checker)        
+        self.pipe_inpaint = OnnxStableDiffusionInpaintPipeline.from_pretrained(path, provider=self.provider, revision='onnx', safety_checker=safety_checker)   
+        print("TYPE OF PIPELINE:   ", type(self.pipe_inpaint))  
 
     def generate_text2image(
         self,
@@ -73,15 +74,20 @@ class CustomDiffuser:
         image = image.resize((width, height))
         mask = mask.resize((width, height))
 
-        output_image = pipe(
+        print("pipe image shape", image.size)
+        print("pipe mask shape", mask.size)
+
+        output = pipe(
             prompt,
             image,
             mask,
+            height=height, # you have to pass the dimensions, it does NOT use the same shape for the latent image by default and the output will come out 512x512 otherwise
+            width=width,
             #strength=noise,
             guidance_scale=cfg
         )
 
-        return output_image
+        return output
 
 
     def save_image(self, relative_path: str):

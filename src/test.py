@@ -26,11 +26,11 @@ def test():
     dir = 'C:/work/py/sd_directml/images'
 
 
-    # diffuser = CustomDiffuser('CPUExecutionProvider')
-    # diffuser.load_model_for_inpainting('C:/work/py/sd_directml/stable_diffusion_onnx_inpainting') #apparently it won't take '..' characters
+    diffuser = CustomDiffuser('CPUExecutionProvider')
+    diffuser.load_model_for_inpainting('C:/work/py/sd_directml/stable_diffusion_onnx_inpainting') #apparently it won't take '..' characters
 
 
-    for image_name in os.listdir(dir)[:10]:
+    for image_name in os.listdir(dir)[:2]:
     #for image_name in os.listdir(dir)[1:3]:
         image_path = os.path.join(dir, image_name)
 
@@ -58,20 +58,28 @@ def test():
             image_path_no_extension = os.path.splitext(image_path)[0]
             cv2.imwrite("outputs/selfie_%s_III.png" % os.path.basename(image_path_no_extension), headless_selfie_mask)
 
+            image = Image.open(image_path)
+            output = diffuser.inpaint_with_prompt(
+                image,
+                Image.fromarray(headless_selfie_mask.astype(np.uint8)),
+                384, #480, #288,#576, #height first 
+                384, #320, #192,#384                
+                'a picture of a woman dressed like lara croft, full body shot, front view, pistol, tactical garter, pistol holster',
+                ''
+            )
 
-            # output = diffuser.inpaint_with_prompt(
-            #     Image.open(image_path),
-            #     Image.fromarray(headless_selfie_mask.astype(np.uint8)),
-            #     288,#576, #height first 
-            #     192,#384                
-            #     'a picture of a man dressed in a darth vader costume, full body shot, front view, light saber',
-            #     ''
-            # )
+            print('OUTPUT TYPE:  ', type(output))
 
-            # print('OUTPUT:   ', output)
-            # print('OUTPUT TYPE:  ', type(output))
-
-            # output.images[0].save("outputs/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension))
+            output_image = output.images[0]
+            #assume square shape is undesirable and forced by library
+            w, h = image.size
+            aspect_ratio = w/h
+            #size = (int(w * aspect_ratio), h) if w < h else (w, int(h / aspect_ratio))  #  what the fuck am I doing....
+            #print("\n resize output image to:    ", size, "\n")
+            resized_output = output_image.resize((w, h))
+            print("\n output image SIZE:   ", resized_output.size)
+            
+            resized_output.save("outputs/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension))
 
 
 
