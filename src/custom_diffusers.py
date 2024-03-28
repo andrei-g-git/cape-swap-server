@@ -1,16 +1,15 @@
-from diffusers import OnnxStableDiffusionPipeline, OnnxStableDiffusionInpaintPipeline
+from diffusers import OnnxStableDiffusionPipeline, OnnxStableDiffusionInpaintPipeline, StableDiffusionPipeline, StableDiffusionInpaintPipeline
 from typing import Literal
 from PIL import Image
 import cv2
 
-
 class CustomDiffuser:
-    def __init__(self, provider:Literal['CPUExecutionProvider', 'DmlExecutionProvider']='CPUExecutionProvider'):
+    def __init__(self, provider:Literal['CPUExecutionProvider', 'DmlExecutionProvider', "CUDAExecutionProvider"]='CUDAExecutionProvider'):
         """
         Parameters
         -----------
             provider:str
-                str of ['CPUExecutionProvider', 'DmlExecutionProvider']
+                str of ['CPUExecutionProvider', 'DmlExecutionProvider', 'CUDAExecutionProvider']
 
         """
         self.pipe_text2image = None
@@ -25,14 +24,14 @@ class CustomDiffuser:
             safety_checker=None
     ):
 
-        self.pipe_text2image = OnnxStableDiffusionPipeline.from_pretrained(path, provider=self.provider,safety_checker=safety_checker)
+        self.pipe_text2image = StableDiffusionPipeline.from_pretrained(path, provider=self.provider,safety_checker=safety_checker)
 
     def load_model_for_inpainting(
             self, 
             path: str = '../stable_diffusion_onnx_inpainting', 
             safety_checker=None
     ):
-        self.pipe_inpaint = OnnxStableDiffusionInpaintPipeline.from_pretrained(path, provider=self.provider, revision='onnx', safety_checker=safety_checker)   
+        self.pipe_inpaint = StableDiffusionInpaintPipeline.from_pretrained(path, provider=self.provider, safety_checker=safety_checker)   
         print("TYPE OF PIPELINE:   ", type(self.pipe_inpaint))  
 
     def generate_text2image(

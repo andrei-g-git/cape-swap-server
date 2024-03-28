@@ -14,11 +14,12 @@ from types_etc import Provider
 
 np.set_printoptions(precision=2)
 
-    
+import torch
+
 class Masking:
     def __init__(
             self, 
-            device_handle:Provider='cpu',
+            device_handle:Provider='cuda:0',
             classifier:Module=None,
             face_parser:Module=None,
             num_classes=19
@@ -29,9 +30,12 @@ class Masking:
         self.num_classes = num_classes
         self.provided_image = None
 
+        print("is cuda available:  ", torch.cuda.is_available())
+        # x = torch.randn(3,4,5, device='cuda:0')
+        # print("device:::::", x.get_device())
 
     def startup_model(self):
-        self.classifier.to(self.device)
+        self.classifier = self.classifier.to(self.device)
         self.classifier.load_state_dict(self.face_parser)
         self.classifier.eval()
 
@@ -47,7 +51,9 @@ class Masking:
          #_w, _h = image.size
         composed_image = to_tensor(interpolated_image)
         expanded_tensor = unsqueeze(composed_image, 0)
-        expanded_tensor.to(self.device)
+        expanded_tensor = expanded_tensor.to(self.device)
+        #expanded_tensor.to("cuda:0")
+        #expanded_tensor.cuda()
         out = self.classifier(expanded_tensor)[0]
         print('output size:   ', out.shape)
         return out
@@ -58,7 +64,7 @@ class Masking:
             .cpu() \
             .detach() \
             .numpy() \
-            .argmax(0) \
+            .argmax(0) 
 
             
         parsing_untransposed = np.transpose(parsing)

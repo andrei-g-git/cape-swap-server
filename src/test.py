@@ -9,25 +9,24 @@ from multiprocessing import Pool, cpu_count
 import math
 import psutil
 
-sys.path.append('../face_parsing_PyTorch/') 
-from model import BiSeNet
+from bisnet import BiSeNet
 
 from custom_diffusers import CustomDiffuser
 
 
 def test():
     masker = Masking(
-        'cpu',
+        'cuda:0',#'cpu',
         BiSeNet(n_classes=19),
-        load('../face_parsing_PyTorch/res/cp/79999_iter.pth', device('cpu'))
+        load('C:/work/py/models/79999_iter.pth', device('cuda:0'))
     )
 
     masker.startup_model()
-    dir = 'C:/work/py/sd_directml/images'
+    dir = 'C:/work/py/cape-swap-server/images/in'
 
 
-    diffuser = CustomDiffuser('CPUExecutionProvider')
-    diffuser.load_model_for_inpainting('C:/work/py/sd_directml/stable_diffusion_onnx_inpainting') #apparently it won't take '..' characters
+    diffuser = CustomDiffuser('CUDAExecutionProvider')
+    diffuser.load_model_for_inpainting('C:/work/py/models/runwayml/stable-diffusion-inpainting') #apparently it won't take '..' characters
 
 
     for image_name in os.listdir(dir)[:2]:
@@ -56,14 +55,14 @@ def test():
             headless_selfie_mask = masker.decapitate(selfie_mask, head_and_hair_mask)
             #print("cleaner mask shape >>>    ", cleaner_mask.shape)
             image_path_no_extension = os.path.splitext(image_path)[0]
-            cv2.imwrite("outputs/selfie_%s_III.png" % os.path.basename(image_path_no_extension), headless_selfie_mask)
+            cv2.imwrite("../images/out/selfie_%s.png" % os.path.basename(image_path_no_extension), headless_selfie_mask)
 
             image = Image.open(image_path)
             output = diffuser.inpaint_with_prompt(
                 image,
                 Image.fromarray(headless_selfie_mask.astype(np.uint8)),
-                384, #480, #288,#576, #height first 
-                384, #320, #192,#384                
+                768,
+                512,               
                 'a picture of a woman dressed like lara croft, full body shot, front view, pistol, tactical garter, pistol holster',
                 ''
             )
@@ -79,7 +78,7 @@ def test():
             resized_output = output_image.resize((w, h))
             print("\n output image SIZE:   ", resized_output.size)
             
-            resized_output.save("outputs/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension))
+            resized_output.save("..images/out/selfie_%s_inpaint.png" % os.path.basename(image_path_no_extension))
 
 
 
