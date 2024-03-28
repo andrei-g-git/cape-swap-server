@@ -1,7 +1,10 @@
 from diffusers import OnnxStableDiffusionPipeline, OnnxStableDiffusionInpaintPipeline, StableDiffusionPipeline, StableDiffusionInpaintPipeline
+from diffusers.pipelines.pipeline_utils import DiffusionPipeline
+from torch import device
 from typing import Literal
 from PIL import Image
 import cv2
+
 
 class CustomDiffuser:
     def __init__(self, provider:Literal['CPUExecutionProvider', 'DmlExecutionProvider', "CUDAExecutionProvider"]='CUDAExecutionProvider'):
@@ -33,6 +36,10 @@ class CustomDiffuser:
     ):
         self.pipe_inpaint = StableDiffusionInpaintPipeline.from_pretrained(path, provider=self.provider, safety_checker=safety_checker)   
         print("TYPE OF PIPELINE:   ", type(self.pipe_inpaint))  
+
+    def inpaint_pipe_to_cuda(self):
+        self.pipe_inpaint = self.pipe_inpaint.to(device("cuda:0"))
+        #self.pipe_text2image = self.pipe_text2image.to(device("cuda:0"))
 
     def generate_text2image(
         self,

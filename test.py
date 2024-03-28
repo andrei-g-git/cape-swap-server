@@ -4,7 +4,7 @@ from PIL import Image
 
 pipe = StableDiffusionPipeline.from_pretrained("C:/work/py/models/runwayml/stable-diffusion-1-5", torch_dtype=torch.float16)
 pipe = pipe.to("cuda")
-image = pipe("photo of a christmas tree submerged under water").images[0]
+image = pipe("photo of a woman taking a selfie, yoga pants, blond hair").images[0]
 image.save("zzz-delete-this.png")
 
 
