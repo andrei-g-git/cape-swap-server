@@ -26,9 +26,13 @@ def test():
 
 
     diffuser = CustomDiffuser('CUDAExecutionProvider')
-    diffuser.load_model_for_inpainting('C:/work/py/models/runwayml/stable-diffusion-inpainting') #apparently it won't take '..' characters
-    diffuser.inpaint_pipe_to_cuda()
-
+    # diffuser.load_model_for_inpainting('C:/work/py/models/runwayml/stable-diffusion-inpainting') #apparently it won't take '..' characters
+    # diffuser.inpaint_pipe_to_cuda()
+    diffuser.load_controlnet_for_inpainting(
+        'C:/work/py/models/runwayml/stable-diffusion-inpainting',
+        #'C:/work/py/models/lllyasviel/sd-controlnet-canny'
+        'lllyasviel/sd-controlnet-canny'
+    )
 
     for image_name in os.listdir(dir)[:2]:
     #for image_name in os.listdir(dir)[1:3]:
@@ -59,18 +63,37 @@ def test():
             cv2.imwrite("C:/work/py/cape-swap-server/images/out/selfie_%s.png" % os.path.basename(image_path_no_extension), headless_selfie_mask)
 
             image = Image.open(image_path)
-            output = diffuser.inpaint_with_prompt(
+            # output = diffuser.inpaint_with_prompt(
+            #     image,
+            #     Image.fromarray(headless_selfie_mask.astype(np.uint8)),
+            #     768,
+            #     512,               
+            #     'a picture of a woman dressed like lara croft, full body shot, front view, pistol, tactical garter, pistol holster',
+            #     ''
+            # )
+
+            image_for_canny_edges = np.asarray(image)
+            canny_image = cv2.Canny(image_for_canny_edges, 100, 200)
+            canny_image = Image.fromarray(canny_image)
+
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            print("image shape     ", image.size)
+            print("mask shape     ", Image.fromarray(headless_selfie_mask.astype(np.uint8)).size)
+            print("canny shape     ", canny_image.size)
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+            output = diffuser.inpaint_with_controlnet(
                 image,
                 Image.fromarray(headless_selfie_mask.astype(np.uint8)),
+                canny_image,
                 768,
                 512,               
-                'a picture of a woman dressed like lara croft, full body shot, front view, pistol, tactical garter, pistol holster',
-                ''
+                'a picture of a woman dressed like lara croft, full body shot, front view, pistol, tactical garter, pistol holster',                                
             )
 
             print('OUTPUT TYPE:  ', type(output))
 
-            output_image = output.images[0]
+            output_image = output#.images[0]
             #assume square shape is undesirable and forced by library
             w, h = image.size
             aspect_ratio = w/h

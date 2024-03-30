@@ -2,10 +2,31 @@ from diffusers import StableDiffusionPipeline
 import torch
 from PIL import Image
 
-pipe = StableDiffusionPipeline.from_pretrained("C:/work/py/models/runwayml/stable-diffusion-1-5", torch_dtype=torch.float16)
-pipe = pipe.to("cuda")
-image = pipe("photo of a woman taking a selfie, yoga pants, blond hair").images[0]
-image.save("zzz-delete-this.png")
+
+class Whatever():
+    def __init__(self) -> None:
+        self.foo = 'bar'
+
+a = Whatever()
+b = a
+
+b.foo = 'not bar, not bar at all actually'
+
+print(a.foo)
+
+
+
+
+
+
+# pipe = StableDiffusionPipeline.from_pretrained("C:/work/py/models/runwayml/stable-diffusion-1-5", torch_dtype=torch.float16)
+# pipe = pipe.to("cuda")
+# image = pipe("photo of a woman taking a selfie, yoga pants, blond hair").images[0]
+# image.save("zzz-delete-this.png")
+
+
+
+
 
 
 # # from custom_diffusers import CustomDiffuser

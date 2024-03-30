@@ -1,6 +1,15 @@
-from diffusers import OnnxStableDiffusionPipeline, OnnxStableDiffusionInpaintPipeline, StableDiffusionPipeline, StableDiffusionInpaintPipeline
+from diffusers import (
+    OnnxStableDiffusionPipeline, 
+    OnnxStableDiffusionInpaintPipeline, 
+    StableDiffusionPipeline, 
+    StableDiffusionInpaintPipeline, 
+    ControlNetModel, 
+    StableDiffusionControlNetInpaintPipeline,
+    UniPCMultistepScheduler
+)
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from torch import device
+from torch import float16, manual_seed
 from typing import Literal
 from PIL import Image
 import cv2
@@ -17,6 +26,7 @@ class CustomDiffuser:
         """
         self.pipe_text2image = None
         self.pipe_inpaint = None
+        self.pipe_inpaint_controlnet = None
         self.image = None
         self.sam = None
         self.provider = provider
@@ -36,6 +46,57 @@ class CustomDiffuser:
     ):
         self.pipe_inpaint = StableDiffusionInpaintPipeline.from_pretrained(path, provider=self.provider, safety_checker=safety_checker)   
         print("TYPE OF PIPELINE:   ", type(self.pipe_inpaint))  
+
+    def load_controlnet_for_inpainting(
+            self,
+            diffusor_path: str,
+            controlnet_path: str,
+            safety_checker=None
+    ):
+        pipe = self.pipe_inpaint_controlnet
+        controlnet = ControlNetModel.from_pretrained(controlnet_path, safety_checker=safety_checker)#, torch_dtype=float16)
+        #pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
+        self.pipe_inpaint_controlnet = StableDiffusionControlNetInpaintPipeline.from_pretrained(
+            diffusor_path,
+            controlnet=controlnet,
+            #torch_dtype=float16 #apparently this doesn't work even thought it's literally in the docu...
+        )
+        #pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
+        self.pipe_inpaint_controlnet.scheduler = UniPCMultistepScheduler.from_config(self.pipe_inpaint_controlnet.scheduler.config)
+        #pipe.enable_xformers_memory_efficient_attention() # I actually shouldn't need this on 12GB vram...
+        #pipe.to(device("cuda:0"))
+        self.pipe_inpaint_controlnet.to(device('cuda:0'))
+
+    def inpaint_with_controlnet(
+            self, 
+            image: Image.Image, 
+            mask: Image.Image,
+            control_image: Image.Image,
+            height: int, 
+            width: int,             
+            prompt: str = '', 
+            negative: str = '',
+            steps: int = 10, 
+            cfg: float =  7.5,
+            noise: float = 0.75           
+    ):
+        image = image.resize((width, height))
+        mask = mask.resize((width, height))
+        control_image = control_image.resize((width, height))
+
+        generator = manual_seed(0)
+        generated_image = self.pipe_inpaint_controlnet(
+            prompt,
+            num_inference_steps=20, #pass argument
+            generator=generator,
+            image=image,
+            control_image=control_image,
+            mask_image=mask           
+        ).images[0]
+
+        return generated_image
+
+
 
     def inpaint_pipe_to_cuda(self):
         self.pipe_inpaint = self.pipe_inpaint.to(device("cuda:0"))
