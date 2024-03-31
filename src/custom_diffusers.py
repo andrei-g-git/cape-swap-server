@@ -13,7 +13,7 @@ from torch import float16, manual_seed
 from typing import Literal
 from PIL import Image
 import cv2
-
+import random
 
 class CustomDiffuser:
     def __init__(self, provider:Literal['CPUExecutionProvider', 'DmlExecutionProvider', "CUDAExecutionProvider"]='CUDAExecutionProvider'):
@@ -76,15 +76,17 @@ class CustomDiffuser:
             width: int,             
             prompt: str = '', 
             negative: str = '',
-            steps: int = 10, 
+            steps: int = 15, 
             cfg: float =  7.5,
-            noise: float = 0.75           
+            noise: float = 1.0#0.75           
     ):
         image = image.resize((width, height))
         mask = mask.resize((width, height))
         control_image = control_image.resize((width, height))
 
-        generator = manual_seed(0)
+        #random.seed(30)
+        #generator = manual_seed(random.random())
+        generator = manual_seed(random.randint(0, 99999))
         generated_image = self.pipe_inpaint_controlnet(
             prompt,
             num_inference_steps=20, #pass argument
