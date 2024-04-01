@@ -255,6 +255,37 @@ class Masking:
     def test_mediapipe_predictions(self, image:PILImage):
         #return mediapipe_predict("mediapipe_face_full", image)
         return mediapipe_face_detection(1, image, 0.6)
+    
+
+
+
+
+    """
+    this doesn't seem accurate... 17 is the hair not 13...
+    
+id 	label 	note
+0 	background 	
+1 	skin 	
+2 	nose 	
+3 	eye_g 	eyeglasses
+4 	l_eye 	left eye
+5 	r_eye 	right eye
+6 	l_brow 	left eyebrow
+7 	r_brow 	right eyebrow
+8 	l_ear 	left ear
+9 	r_ear 	right ear
+10 	mouth 	area between lips
+11 	u_lip 	upper lip
+12 	l_lip 	lower lip
+13 	hair 	
+14 	hat 	
+15 	ear_r 	earring
+16 	neck_l 	necklace
+17 	neck 	
+18 	cloth 	clothing
+    
+    
+    """
 
 
 

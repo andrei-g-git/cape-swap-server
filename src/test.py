@@ -29,12 +29,16 @@ def test():
     # diffuser.load_model_for_inpainting('C:/work/py/models/runwayml/stable-diffusion-inpainting') #apparently it won't take '..' characters
     # diffuser.inpaint_pipe_to_cuda()
     diffuser.load_controlnet_for_inpainting(
-        'C:/work/py/models/runwayml/stable-diffusion-inpainting',
+        #'C:/work/py/models/runwayml/stable-diffusion-inpainting',
+        'Lykon/DreamShaper',
+        #'philz1337x/cyberrealistic-v4.2',
+        #'digiplay/AnalogMadness-realistic-model-v7',
         #'C:/work/py/models/lllyasviel/sd-controlnet-canny'
-        'lllyasviel/sd-controlnet-canny'
+        #'lllyasviel/sd-controlnet-canny',
+        'lllyasviel/control_v11p_sd15_lineart'
     )
 
-    for image_name in os.listdir(dir)[:2]:
+    for image_name in os.listdir(dir)[:5]:
     #for image_name in os.listdir(dir)[1:3]:
         image_path = os.path.join(dir, image_name)
 

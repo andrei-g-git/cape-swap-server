@@ -84,6 +84,11 @@ class CustomDiffuser:
         mask = mask.resize((width, height))
         control_image = control_image.resize((width, height))
 
+        print("image sizeeeeeee,    ", image.size)
+        print("mask sizeeeeeee,    ", mask.size)
+        print("control image sizeeeeeee,    ", control_image.size)
+        print("+++++++++++++++++++++++++++++++++++++")
+
         #random.seed(30)
         #generator = manual_seed(random.random())
         generator = manual_seed(random.randint(0, 99999))
