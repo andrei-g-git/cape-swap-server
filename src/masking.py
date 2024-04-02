@@ -10,7 +10,7 @@ from PIL.Image import Image as PILImage
 import cv2
 import mediapipe as mp
 from types_etc import Provider
-
+import imutils
 
 np.set_printoptions(precision=2)
 
@@ -125,6 +125,45 @@ class Masking:
             bboxes.append([x1, y1, x2, y2])
 
         return bboxes[0] #assume there's only 1 person
+
+
+    def get_bbox_from_mask(self, mask:cv2.typing.MatLike | Image.Image):
+        print("& & & & & &   mask shape:   ", mask.shape)
+        mask_2d = np.empty((mask.shape[0], mask.shape[1]))
+        mask_2d[:, :] = mask[:, :, 0]
+
+        binary_image = np.where(mask_2d < 1, [0], [1])
+
+        print("& & & & & &   bianry image shape:   ", binary_image.shape)
+        contours, _ = cv2.findContours(binary_image, cv2.RETR_FLOODFILL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = imutils.grab_contours((contours, _))
+        big_one = max(cnts, key=cv2.contourArea)
+        x1, y1, w, h = cv2.boundingRect(big_one)
+        x2 = x1 + w
+        y2 = y1 + h
+
+        return (x1, y1, x2, y2)
+
+
+    def crop_image_subject_aware(self, image, bbox, width, height):
+        #should turn any collection of if branchings into algorythm/ecuations
+        (x1, y1, x2, y2) = bbox
+        padding = (x1, y1, width - x2, height - y2)
+        (px1, py1, px2, py2) = padding
+        if(height/width > 1.5): #ratio shouldn't be hard coded
+            left = max(0, px1 - px2)
+            right = max(0, px2 - px1)
+            #continue from here
+            #if left is bigger then calc width that it results in a 1.5 ratio (with height being constant), subtract 
+            #from real width and see if it cuts into the bbox from the left, if not then I found the amount to 
+            #crop and direction to crop from, else do this for the vertical axis (with no padding on horizontal) and if that doesn't 
+            #go pack to the horizontal axis from where it was left off and start peeling off left and right padding equally from inside the bbox
+            if(left == 0 and right == 0):
+                top = max(0, py1 - py2)
+                bottom = max(0, py2 - py1)
+        else:
+            pass
+
 
 
 

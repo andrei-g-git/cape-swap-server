@@ -60,10 +60,22 @@ def test():
 
 
             selfie_mask = masker.mask_whole_person(image_path)
-            cleaner_mask = masker.filter_biggest_segment(selfie_mask)
-            headless_selfie_mask = masker.decapitate(selfie_mask, head_and_hair_mask)
-            #print("cleaner mask shape >>>    ", cleaner_mask.shape)
+            cleaner_mask = masker.filter_biggest_segment(selfie_mask) #aren't I using this for the final product?...
+
+            new_bbox = masker.get_bbox_from_mask(cleaner_mask)
+
             image_path_no_extension = os.path.splitext(image_path)[0]
+
+            #test
+            body_mask_for_bbox_visualization = cleaner_mask.copy()
+            pseudo_mask_with_bbox = cv2.rectangle(body_mask_for_bbox_visualization, (new_bbox[0], new_bbox[1]), (new_bbox[2], new_bbox[3]), color=(0, 0, 255), thickness=5)
+
+            cv2.imwrite("C:/work/py/cape-swap-server/images/out/selfie_mask_w_bbox_%s.png" % os.path.basename(image_path_no_extension), pseudo_mask_with_bbox)
+
+
+            headless_selfie_mask = masker.decapitate(selfie_mask, head_and_hair_mask)#cleaner_mask, head_and_hair_mask)
+            #print("cleaner mask shape >>>    ", cleaner_mask.shape)
+
             cv2.imwrite("C:/work/py/cape-swap-server/images/out/selfie_%s.png" % os.path.basename(image_path_no_extension), headless_selfie_mask)
 
             image = Image.open(image_path)
