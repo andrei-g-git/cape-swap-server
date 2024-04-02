@@ -98,20 +98,27 @@ def test():
             print("canny shape     ", canny_image.size)
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
+
+            final_input_image = masker.crop_image_subject_aware(image, new_bbox, 1.5)
+            final_mask = masker.crop_image_subject_aware(Image.fromarray(headless_selfie_mask.astype(np.uint8)), new_bbox, 1.5) # this isn't good I should get the padding only once
+            final_canny = masker.crop_image_subject_aware(canny_image, new_bbox, 1.5)
+
+            new_w, new_h = final_input_image.size
+
             output = diffuser.inpaint_with_controlnet(
-                image,
-                Image.fromarray(headless_selfie_mask.astype(np.uint8)),
-                canny_image,
+                final_input_image,
+                final_mask,
+                final_canny,
                 768,
                 512,               
-                'a picture of a woman dressed like lara croft, full body shot, front view, pistol, tactical garter, pistol holster',                                
+                'a picture of a woman dressed like lara croft, full body shot, front view, pistol, tactical strap, pistol holster',                                
             )
 
             print('OUTPUT TYPE:  ', type(output))
 
             output_image = output#.images[0]
             #assume square shape is undesirable and forced by library
-            w, h = image.size
+            w, h = final_input_image.size#image.size
             aspect_ratio = w/h
             #size = (int(w * aspect_ratio), h) if w < h else (w, int(h / aspect_ratio))  #  what the fuck am I doing....
             #print("\n resize output image to:    ", size, "\n")

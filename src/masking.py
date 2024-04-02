@@ -12,6 +12,8 @@ import mediapipe as mp
 from types_etc import Provider
 import imutils
 
+import sys, os
+
 np.set_printoptions(precision=2)
 
 import torch
@@ -145,24 +147,121 @@ class Masking:
         return (x1, y1, x2, y2)
 
 
-    def crop_image_subject_aware(self, image, bbox, width, height):
+    def crop_image_subject_aware(self, image, bbox, height_to_width_ratio=1.5):
         #should turn any collection of if branchings into algorythm/ecuations
+        ratio = height_to_width_ratio
+        width, height = image.size
         (x1, y1, x2, y2) = bbox
         padding = (x1, y1, width - x2, height - y2)
         (px1, py1, px2, py2) = padding
-        if(height/width > 1.5): #ratio shouldn't be hard coded
-            left = max(0, px1 - px2)
-            right = max(0, px2 - px1)
+        left_final = top_final = 0
+        right_final = width
+        bottom_final = height
+        if(height/width > ratio): #ratio shouldn't be hard coded
+            top = max(0, py1 - py2)
+            bottom = max(0, py2 - py1)
+
+            current_desired_height = width * ratio
+            #crop_top = height - current_desired_height
+            max_crop_top = height - current_desired_height
+
+            crop_diff_vertical = max(top, bottom)
+
+            if(crop_diff_vertical <= max_crop_top):
+                print("1")                
+                crop_top_remainder = max_crop_top - crop_diff_vertical
+                vertical_equal_crop_value = crop_top_remainder / 2
+
+                if(top > bottom):
+                    print("2") 
+                    top_final = crop_diff_vertical + vertical_equal_crop_value
+                    bottom_final = height - vertical_equal_crop_value #added subrtraction from image dimension, Image.crop does not take padding coordinates, it takes coordinates of the box you want to crop to within the original image
+                else:
+                    print("3") 
+                    top_final = vertical_equal_crop_value
+                    #bottom_final = crop_diff_vertical + vertical_equal_crop_value
+                    bottom_final = height - crop_diff_vertical - vertical_equal_crop_value
+
+            elif((y2 - y1) / (x2 - x1) <= ratio):
+                print("4") 
+                top_final = py1
+                bottom_final = height - py2
+
+                left = max(0, px1 - px2)
+                right = max(0, px2 - px1)
+
+                final_height = height - top_final - py2#bottom_final
+
+                current_desired_width = final_height / ratio
+
+                max_crop_left = width - current_desired_width
+
+                crop_diff_horizontal = max(left, right)
+
+                crop_left_remainder = max_crop_left - crop_diff_horizontal
+                horizontal_equal_crop_value = crop_left_remainder / 2
+
+                if(left > right):
+                    print("5") 
+                    left_final = crop_diff_horizontal + horizontal_equal_crop_value
+                    #right_final = horizontal_equal_crop_value
+                    right_final = width - horizontal_equal_crop_value
+                else:
+                    print("6") 
+                    left_final = horizontal_equal_crop_value
+                    #right_final = crop_diff_horizontal + horizontal_equal_crop_value   
+                    right_final = width - crop_diff_horizontal - horizontal_equal_crop_value
+
+            else:
+                print("7") 
+                left_final = px1
+                #right_final = px2 
+                right_final = width - px2 
+
+                desired_bbox_height = (x2 - x1) * ratio
+                #bottom_final += (y2 - y1) - desired_bbox_height
+                bottom_final -= ((y2 - y1) - desired_bbox_height)
+
+                #lol this barely makes any sense
+                #and even if it works as intended it will crop too much of the image to make it 1:ratio, there are probably beter methods to achieve this...           
+
+
+
+            #nope should subtract top, bottom, left or right + the remainder of the ratio difference taken equally from the combined axis paddings, otherwise 
+            #the selfie taker will end up way off center despite fitting in the image
+
             #continue from here
-            #if left is bigger then calc width that it results in a 1.5 ratio (with height being constant), subtract 
+            #if ~~left~~ top is bigger then calc ~~width~~ height that it results in a ratio ratio (with ~~height~~ width being constant), subtract 
             #from real width and see if it cuts into the bbox from the left, if not then I found the amount to 
-            #crop and direction to crop from, else do this for the vertical axis (with no padding on horizontal) and if that doesn't 
-            #go pack to the horizontal axis from where it was left off and start peeling off left and right padding equally from inside the bbox
-            if(left == 0 and right == 0):
-                top = max(0, py1 - py2)
-                bottom = max(0, py2 - py1)
-        else:
+            #crop and direction to crop from, else do this for the ~~vertical~~ horizontal axis (with no padding on ~~horizontal~~ vertical) and if that doesn't 
+            #go pack to the ~~horizontal~~ vertical axis from where it was left off and start peeling off ~~left~~ and ~~right~~ top and bottom padding equally from inside the bbox
+
+            # elif(top == 0 and bottom == 0):
+            #     left = max(0, px1 - px2)
+            #     right = max(0, px2 - px1)
+
+            #     current_desired_width = height / ratio
+            #     crop_left = width - current_desired_width
+            #     if(crop_left <= x1):
+            #         left_final = crop_left
+
+            #     else
+
+
+
+        elif(height/width < ratio):
             pass
+        
+        print("* * * * * * * ")
+        print(f"PADDING:    {left_final}, {top_final}, {right_final}, {bottom_final}")
+
+        #return (left_final, top_final, right_final, bottom_final)
+        cropped_image = image.crop((left_final, top_final, right_final, bottom_final))
+
+        print("OG image shape:   ", image.size)
+        print("cropped image shapep:   ", cropped_image.size)
+
+        return cropped_image
 
 
 
