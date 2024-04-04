@@ -41,21 +41,32 @@ class Masking:
         self.classifier.load_state_dict(self.face_parser)
         self.classifier.eval()
 
-    def preprocess_image(self, image_path):
+    def preprocess_image(self, image:str|Image.Image):
         to_tensor = transforms.Compose([ #no idea what this is...
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
         ])
 
-        self.provided_image = Image.open(image_path)
+        if(type(image) is str):
+            self.provided_image = Image.open(image)
+        elif(type(image) is Image.Image):
+            self.provided_image = image
+
+        #print('from MASKING, unprocessed image size:  ', image.size, '    and channels:   ', len(image.split()))
+
         w, h = self.provided_image.size
         interpolated_image = self.provided_image.resize((w, h), Image.BILINEAR)
-         #_w, _h = image.size
+
+        #print('from MASKING, interpolated size:  ', interpolated_image.size, '    and channels:   ', len(interpolated_image.split())) 
         composed_image = to_tensor(interpolated_image)
+        print('COMPOSED_IMAGE_SHAPE:     ', composed_image.shape)
         expanded_tensor = unsqueeze(composed_image, 0)
+
         expanded_tensor = expanded_tensor.to(self.device)
         #expanded_tensor.to("cuda:0")
         #expanded_tensor.cuda()
+        print('EXPANDED_TENSOR_SHAPE:     ', expanded_tensor.shape)
+        self.classifier.cuda() #added new for testing, DELETE
         out = self.classifier(expanded_tensor)[0]
         print('output size:   ', out.shape)
         return out
@@ -157,7 +168,7 @@ class Masking:
         left_final = top_final = 0
         right_final = width
         bottom_final = height
-        if(height/width > ratio): #ratio shouldn't be hard coded
+        if(height/width > ratio): 
             top = max(0, py1 - py2)
             bottom = max(0, py2 - py1)
 
