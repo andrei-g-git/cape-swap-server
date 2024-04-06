@@ -1,3 +1,4 @@
+from io import BytesIO
 from flask import Flask, request, send_file
 from flask_cors import CORS
 from PIL import Image
@@ -6,6 +7,8 @@ import json
 from custom_diffusers import CustomDiffuser
 from masking import Masking
 from bisnet import BiSeNet
+import cv2
+import numpy as np
 
 app = Flask(__name__)
 CORS(app)
@@ -45,8 +48,49 @@ class FlaskSDServer:
         PILmask = Image.fromarray(mask).convert('RGB')
         PILmask.save("zzz-mask.png")
         bbox = self.masker.get_second_opinion_as_bbox(img, 1, 0.6)   
+        print('BBOX:   ', bbox)  
+        if len(bbox):
+            head_and_hair_mask = self.masker.filter_contiguous_head(mask, bbox)
+            selfie_mask = self.masker.mask_whole_person(np.asarray(img))
+            cleaner_mask = self.masker.filter_biggest_segment(selfie_mask) #aren't I using this for the final product?...
+            cv2.imwrite("zzz-cleaner-mask.png", cleaner_mask)
 
-        print('BBOX:   ', bbox)     
+            new_bbox = self.masker.get_bbox_from_mask(cleaner_mask)
+            #image_path_no_extension = os.path.splitext(image_path)[0]
+            headless_selfie_mask = self.masker.decapitate(selfie_mask, head_and_hair_mask)#cleaner_mask, head_and_hair_mask)
+
+            image_for_canny_edges = np.asarray(img)
+            canny_image = cv2.Canny(image_for_canny_edges, 100, 200)
+            canny_image = Image.fromarray(canny_image)
+
+            final_input_image = self.masker.crop_image_subject_aware(img, new_bbox, 1.5)
+            final_mask = self.masker.crop_image_subject_aware(Image.fromarray(headless_selfie_mask.astype(np.uint8)), new_bbox, 1.5) # this isn't good I should get the padding only once
+            final_canny = self.masker.crop_image_subject_aware(canny_image, new_bbox, 1.5)
+
+            new_w, new_h = final_input_image.size
+
+            output = self.sd.inpaint_with_controlnet(
+                final_input_image,
+                final_mask,
+                final_canny,
+                768,
+                512,               
+                prompt,                                
+            )   
+
+
+            w, h = final_input_image.size
+            aspect_ratio = w/h
+            resized_output = output.resize((w, h))
+            
+            resized_output.save("zzz-generated.png", "PNG")        
+
+            img_io = BytesIO() 
+            img.save(img_io, 'PNG', quality=75)
+            img_io.seek(0)
+
+            return send_file(img_io, mimetype='image/png')             
+   
 
 
 api = FlaskSDServer(

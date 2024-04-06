@@ -349,14 +349,21 @@ class Masking:
         return fixed_mask
 
 
-    def mask_whole_person(self, image_file):
+    def mask_whole_person(self, image_file:str|Image.Image|np.ndarray):
         mp_drawing = mp.solutions.drawing_utils
         mp_selfie_segmentation = mp.solutions.selfie_segmentation
 
         #with mp_selfie_segmentation.SelfieSegmentation(model_selection=0) as selfie_segmentation:
         segmentation = mp_selfie_segmentation.SelfieSegmentation(model_selection=0)
-        
-        image = cv2.imread(image_file)
+        print("TYPE OF IMAGE_FILE:   ", type(image_file))
+        image = None
+        if(type(image_file) is str):
+            image = cv2.imread(image_file)
+            print("IS STRING!!!!")
+        #elif(type(image_file) is Image.Image):
+        elif(type(image_file) is np.ndarray):
+            image = image_file
+            print("IS PIL IMAGE!!!!")
         height, width, _ = image.shape  #height first????
         print("is the height read first? shape :    ", image.shape)
         results = segmentation.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
