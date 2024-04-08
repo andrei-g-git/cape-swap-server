@@ -1,3 +1,5 @@
+import gc
+import time
 from diffusers import (
     OnnxStableDiffusionPipeline, 
     OnnxStableDiffusionInpaintPipeline, 
@@ -8,15 +10,17 @@ from diffusers import (
     UniPCMultistepScheduler
 )
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
-from torch import device
+from diffusers.models.attention_processor import AttnProcessor2_0
+from torch import device, cuda, no_grad
 from torch import float16, manual_seed
+import torch
 from typing import Literal
 from PIL import Image
 import cv2
 import random
 
 class CustomDiffuser:
-    def __init__(self, provider:Literal['CPUExecutionProvider', 'DmlExecutionProvider', "CUDAExecutionProvider"]='CUDAExecutionProvider'):
+    def __init__(self, provider:Literal['CPUExecutionProvider', 'DmlExecutionProvider', 'CUDAExecutionProvider']='CUDAExecutionProvider'):
         """
         Parameters
         -----------
@@ -59,14 +63,34 @@ class CustomDiffuser:
         self.pipe_inpaint_controlnet = StableDiffusionControlNetInpaintPipeline.from_pretrained(
             diffusor_path,
             controlnet=controlnet,
-            #torch_dtype=float16 #apparently this doesn't work even thought it's literally in the docu...
+            #torch_dtype=float16, #apparently this doesn't work even thought it's literally in the docu...
             safety_checker=safety_checker
         )
         #pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
         self.pipe_inpaint_controlnet.scheduler = UniPCMultistepScheduler.from_config(self.pipe_inpaint_controlnet.scheduler.config)
         #pipe.enable_xformers_memory_efficient_attention() # I actually shouldn't need this on 12GB vram...
         #pipe.to(device("cuda:0"))
+
         self.pipe_inpaint_controlnet.to(device('cuda:0'))
+        self.pipe_inpaint_controlnet.unet.set_attn_processor(AttnProcessor2_0())
+        self.pipe_inpaint_controlnet.enable_xformers_memory_efficient_attention()
+        self.pipe_inpaint_controlnet.enable_attention_slicing()
+
+        gc.collect()
+        with no_grad():
+            cuda.empty_cache()
+
+        controlnet.to("cpu")
+        self.pipe_inpaint_controlnet.to("cpu")
+        gc.collect()
+        with no_grad():
+            cuda.empty_cache()
+        cuda.empty_cache()
+
+        # controlnet.to("cuda:0")
+        # self.pipe_inpaint_controlnet.to("cuda:0")
+
+
 
     def inpaint_with_controlnet(
             self, 
@@ -88,14 +112,17 @@ class CustomDiffuser:
         print("image sizeeeeeee,    ", image.size)
         print("mask sizeeeeeee,    ", mask.size)
         print("control image sizeeeeeee,    ", control_image.size)
+        print("CUDA is available:   ", cuda.is_available())
         print("+++++++++++++++++++++++++++++++++++++")
 
-        #random.seed(30)
-        #generator = manual_seed(random.random())
-        generator = manual_seed(random.randint(0, 99999))
+        #test
+        self.pipe_inpaint_controlnet.to("cuda:0") # this in tandem with switching the pipe to CPU in the loader WORKS!
+
+
+        generator = manual_seed(-1)
         generated_image = self.pipe_inpaint_controlnet(
             prompt,
-            num_inference_steps=20, #pass argument
+            num_inference_steps=steps, #pass argument
             generator=generator,
             image=image,
             control_image=control_image,

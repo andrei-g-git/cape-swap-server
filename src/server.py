@@ -15,6 +15,13 @@ CORS(app)
 
 app.debug = True
 
+test_diffuser = CustomDiffuser('CUDAExecutionProvider')
+test_masker = Masking(
+        'cuda:0',
+        BiSeNet(n_classes=19),
+        load('C:/work/py/models/79999_iter.pth', device('cuda:0'))
+    ) 
+
 class FlaskSDServer:
     def __init__(self,  diffusion_handler: CustomDiffuser, masker: Masking):
         self.sd = diffusion_handler
@@ -23,6 +30,7 @@ class FlaskSDServer:
     def initialize_diffusor_and_masking(self):
         self.sd.load_controlnet_for_inpainting(
             'Lykon/DreamShaper',
+            #'C:/work/py/models/imagepipeline/realisticVisionV60B1_v51VAE',
             'lllyasviel/control_v11p_sd15_lineart'
         )
 
@@ -75,7 +83,7 @@ class FlaskSDServer:
                 final_canny,
                 768,
                 512,               
-                prompt,                                
+                prompt                               
             )   
 
 
@@ -94,7 +102,7 @@ class FlaskSDServer:
 
 
 api = FlaskSDServer(
-    CustomDiffuser('CPUExecutionProvider'),
+    CustomDiffuser('CUDAExecutionProvider'), 
     Masking(
         'cuda:0',#'cpu',
         BiSeNet(n_classes=19),
@@ -106,3 +114,11 @@ api.initialize_diffusor_and_masking()
 @app.route('/diffusers/inpaint', methods=['POST'])
 def post_prompt_for_inpaint():
     return api.on_post_image()
+
+HOST = '127.0.0.1'
+PORT = 5000
+
+
+if __name__ == '__main__':
+
+    app.run(host=HOST, port=PORT)
