@@ -104,7 +104,7 @@ class CustomDiffuser:
             negative: str = '',
             steps: int = 15, 
             cfg: float =  7.5,
-            noise: float = 1.0#0.75           
+            noise: float = 1.0#0.75  try lower noise again         
     ):
         image = image.resize((width, height))
         mask = mask.resize((width, height))
