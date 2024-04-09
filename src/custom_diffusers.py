@@ -66,6 +66,7 @@ class CustomDiffuser:
             #torch_dtype=float16, #apparently this doesn't work even thought it's literally in the docu...
             safety_checker=safety_checker
         )
+        print("+++++++ pipe type:    ", type(self.pipe_inpaint_controlnet))
         #pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
         self.pipe_inpaint_controlnet.scheduler = UniPCMultistepScheduler.from_config(self.pipe_inpaint_controlnet.scheduler.config)
         #pipe.enable_xformers_memory_efficient_attention() # I actually shouldn't need this on 12GB vram...
