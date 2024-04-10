@@ -9,7 +9,7 @@ import tempfile
 from torch.hub import get_dir
 from torch import device
 #import torch
-sys.path.append(os.getcwd() + '/..')
+#sys.path.append(os.getcwd() + '/..')
 from comfyui_controlnet_aux.src.controlnet_aux.normalbae import NormalBaeDetector
 
 class ImageProcessor:
@@ -23,8 +23,8 @@ class ImageProcessor:
         self.depth_processor = AutoImageProcessor.from_pretrained(model_path_or_url)
         self.depth_model = DPTForDepthEstimation.from_pretrained(model_path_or_url)
 
-    #def startup_normal_mapper(self, model_path_or_url:str='lllyasviel/Annotators', file_name:str='scannet.pt'):
-    def startup_normal_mapper(self, model_path_or_url:str='C:/work/py/cape-swap-server/comfyui_controlnet_aux/ckpts/lllyasviel/Annotators', file_name:str='scannet.pt', device:device=device('cuda:0')):
+    def startup_normal_mapper(self, model_path_or_url:str='lllyasviel/Annotators', file_name:str='scannet.pt', device:device=device('cuda:0')):
+    #def startup_normal_mapper(self, model_path_or_url:str='C:/work/py/cape-swap-server/comfyui_controlnet_aux/ckpts/lllyasviel/Annotators', file_name:str='scannet.pt', device:device=device('cuda:0')):
 
         # model_path = hf_hub_download(  # no good, I'd need to copy paste a whole slew of models that I don't understand, I'll just clone comfyui_controlnet_aux
         #     repo_id=model_path_or_url,
@@ -76,11 +76,11 @@ class ImageProcessor:
         return depth_image
 
         
-processor = ImageProcessor()
-#processor.startup_depth_mapper()
-processor.startup_normal_mapper()
-img = processor.extract_normal_map(Image.open('C:/work/py/cape-swap-server/images/in/10.jpg'))
-img.save('z-normals.png', 'PNG')
+# processor = ImageProcessor()
+# #processor.startup_depth_mapper()
+# processor.startup_normal_mapper()
+# img = processor.extract_normal_map(Image.open('C:/work/py/cape-swap-server/images/in/10.jpg'))
+# img.save('z-normals.png', 'PNG')
 
 
         

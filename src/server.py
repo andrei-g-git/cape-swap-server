@@ -5,6 +5,7 @@ from PIL import Image
 from torch import device, load
 import json
 from custom_diffusers import CustomDiffuser
+from image_processing import ImageProcessor
 from masking import Masking
 from bisnet import BiSeNet
 import cv2
@@ -23,18 +24,24 @@ test_masker = Masking(
     ) 
 
 class FlaskSDServer:
-    def __init__(self,  diffusion_handler: CustomDiffuser, masker: Masking):
+    def __init__(self,  diffusion_handler: CustomDiffuser, masker: Masking, image_processor:ImageProcessor):
         self.sd = diffusion_handler
         self.masker = masker
+        self.image_processor = image_processor
 
     def initialize_diffusor_and_masking(self):
         self.sd.load_controlnet_for_inpainting(
-            'Lykon/DreamShaper',
-            #'C:/work/py/models/imagepipeline/realisticVisionV60B1_v51VAE',
-            'lllyasviel/control_v11p_sd15_lineart'
+            #'Lykon/DreamShaper',
+            'C:/work/py/models/imagepipeline/realisticVisionV60B1_v51VAE',
+            [
+                'lllyasviel/control_v11p_sd15_lineart',
+                'lllyasviel/control_v11p_sd15_normalbae'
+            ]
+            
         )
-
         self.masker.startup_model()
+        self.image_processor.startup_normal_mapper()
+
 
     def on_post_image(self):
         files = request.files
@@ -42,7 +49,6 @@ class FlaskSDServer:
 
         img = Image.open(image) \
             .convert('RGB')
-            #.convert("L") 
             
         img.save("zzz-posted-image.png")
 
@@ -67,20 +73,23 @@ class FlaskSDServer:
             #image_path_no_extension = os.path.splitext(image_path)[0]
             headless_selfie_mask = self.masker.decapitate(selfie_mask, head_and_hair_mask)#cleaner_mask, head_and_hair_mask)
 
-            image_for_canny_edges = np.asarray(img)
-            canny_image = cv2.Canny(image_for_canny_edges, 100, 200)
+            control_image_for_preprocessing = np.asarray(img)
+            canny_image = cv2.Canny(control_image_for_preprocessing, 100, 200)
             canny_image = Image.fromarray(canny_image)
+
+            normal_map = self.image_processor.extract_normal_map(control_image_for_preprocessing)
 
             final_input_image = self.masker.crop_image_subject_aware(img, new_bbox, 1.5)
             final_mask = self.masker.crop_image_subject_aware(Image.fromarray(headless_selfie_mask.astype(np.uint8)), new_bbox, 1.5) # this isn't good I should get the padding only once
             final_canny = self.masker.crop_image_subject_aware(canny_image, new_bbox, 1.5)
+            final_normal = self.masker.crop_image_subject_aware(normal_map, new_bbox, 1.5)
 
             new_w, new_h = final_input_image.size
 
             output = self.sd.inpaint_with_controlnet(
                 final_input_image,
                 final_mask,
-                final_canny,
+                [final_canny, final_normal],
                 768,
                 512,               
                 prompt                               
@@ -107,7 +116,8 @@ api = FlaskSDServer(
         'cuda:0',#'cpu',
         BiSeNet(n_classes=19),
         load('C:/work/py/models/79999_iter.pth', device('cuda:0'))#'cpu'))
-    )    
+    ),
+    ImageProcessor()    
 )
 api.initialize_diffusor_and_masking()
 

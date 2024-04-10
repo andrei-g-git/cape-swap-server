@@ -1,23 +1,22 @@
 import gc
 import time
 from diffusers import (
-    OnnxStableDiffusionPipeline, 
-    OnnxStableDiffusionInpaintPipeline, 
     StableDiffusionPipeline, 
     StableDiffusionInpaintPipeline, 
     ControlNetModel, 
     StableDiffusionControlNetInpaintPipeline,
     UniPCMultistepScheduler
 )
-from diffusers.pipelines.pipeline_utils import DiffusionPipeline
+from diffusers.pipelines.controlnet import MultiControlNetModel
 from diffusers.models.attention_processor import AttnProcessor2_0
 from torch import device, cuda, no_grad
 from torch import float16, manual_seed
 import torch
-from typing import Literal
+from typing import List, Literal
 from PIL import Image
 import cv2
 import random
+
 
 class CustomDiffuser:
     def __init__(self, provider:Literal['CPUExecutionProvider', 'DmlExecutionProvider', 'CUDAExecutionProvider']='CUDAExecutionProvider'):
@@ -54,23 +53,21 @@ class CustomDiffuser:
     def load_controlnet_for_inpainting(
             self,
             diffusor_path: str,
-            controlnet_path: str,
+            controlnet_paths: List[str],
             safety_checker=None
     ):
         pipe = self.pipe_inpaint_controlnet
-        controlnet = ControlNetModel.from_pretrained(controlnet_path, safety_checker=safety_checker)#, torch_dtype=float16)
-        #pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
+        controlnet_lineart = ControlNetModel.from_pretrained(controlnet_paths[0], safety_checker=safety_checker) 
+        controlnet_normals = ControlNetModel.from_pretrained(controlnet_paths[1], safety_checker=safety_checker)
+        controlnet = MultiControlNetModel([controlnet_lineart, controlnet_normals])
         self.pipe_inpaint_controlnet = StableDiffusionControlNetInpaintPipeline.from_pretrained(
             diffusor_path,
             controlnet=controlnet,
             #torch_dtype=float16, #apparently this doesn't work even thought it's literally in the docu...
             safety_checker=safety_checker
         )
-        print("+++++++ pipe type:    ", type(self.pipe_inpaint_controlnet))
-        #pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
+
         self.pipe_inpaint_controlnet.scheduler = UniPCMultistepScheduler.from_config(self.pipe_inpaint_controlnet.scheduler.config)
-        #pipe.enable_xformers_memory_efficient_attention() # I actually shouldn't need this on 12GB vram...
-        #pipe.to(device("cuda:0"))
 
         self.pipe_inpaint_controlnet.to(device('cuda:0'))
         self.pipe_inpaint_controlnet.unet.set_attn_processor(AttnProcessor2_0())
@@ -97,7 +94,7 @@ class CustomDiffuser:
             self, 
             image: Image.Image, 
             mask: Image.Image,
-            control_image: Image.Image,
+            control_images: List[Image.Image],
             height: int, 
             width: int,             
             prompt: str = '', 
@@ -108,11 +105,12 @@ class CustomDiffuser:
     ):
         image = image.resize((width, height))
         mask = mask.resize((width, height))
-        control_image = control_image.resize((width, height))
+
+        resized_control_images = [control_image.resize((width, height)) for control_image in control_images]
 
         print("image sizeeeeeee,    ", image.size)
         print("mask sizeeeeeee,    ", mask.size)
-        print("control image sizeeeeeee,    ", control_image.size)
+        #print("control image sizeeeeeee,    ", resizedcontrol_image.size)
         print("CUDA is available:   ", cuda.is_available())
         print("+++++++++++++++++++++++++++++++++++++")
 
@@ -126,7 +124,7 @@ class CustomDiffuser:
             num_inference_steps=steps, #pass argument
             generator=generator,
             image=image,
-            control_image=control_image,
+            control_image=resized_control_images, # it sees the colelction of control images i.e. canny image and normal image as a batch of images, not something that would be passed to each controlnet
             mask_image=mask           
         ).images[0]
 
