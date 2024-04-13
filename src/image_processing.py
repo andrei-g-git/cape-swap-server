@@ -1,6 +1,8 @@
+import gc
 import os, sys
+from typing import Tuple
 import numpy as np
-from torch import Tensor, no_grad
+from torch import no_grad, cuda
 from torch.nn.functional import interpolate
 from transformers import DPTImageProcessor, DPTForDepthEstimation, AutoImageProcessor
 from PIL import Image
@@ -17,6 +19,7 @@ class ImageProcessor:
         self.depth_processor = None
         self.depth_model = None
         self.normals_pipe = None
+        self.device = device('cuda:0')
 
     def startup_depth_mapper(self, model_path_or_url:str='Intel/dpt-hybrid-midas'):
         #self.depth_processor = DPTImageProcessor.from_pretrained(model_path_or_url)
@@ -37,15 +40,21 @@ class ImageProcessor:
         #     etag_timeout=100,
         #     repo_type='model'
         # )
-        self.normals_pipe = NormalBaeDetector.from_pretrained(model_path_or_url, file_name).to(device)
+        self.device = device
+        self.normals_pipe = NormalBaeDetector.from_pretrained(model_path_or_url, file_name).to('cpu')#device)
 
     def extract_normal_map(self, image:Image.Image):
         np_image = np.asarray(image, dtype=np.uint8)
         denormalized_image = np_image * 255
+        self.normals_pipe.to(self.device)
         output = self.normals_pipe(denormalized_image, output_type='np', detect_resolution=512)
         normal_image = Image.fromarray(output)
 
-        del self.normals_pipe
+        #del self.normals_pipe
+
+        gc.collect()
+        with no_grad():
+            cuda.empty_cache()
 
         return normal_image
 
@@ -74,6 +83,13 @@ class ImageProcessor:
         del self.depth_model
 
         return depth_image
+
+    def resize_image_keep_aspect(self, image:Image.Image, size:Tuple[int, int]):
+        resized = image.copy()
+        resized.thumbnail(size, Image.Resampling.LANCZOS)
+
+        return resized
+
 
         
 # processor = ImageProcessor()

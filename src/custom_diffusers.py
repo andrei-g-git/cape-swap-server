@@ -9,13 +9,14 @@ from diffusers import (
 )
 from diffusers.pipelines.controlnet import MultiControlNetModel
 from diffusers.models.attention_processor import AttnProcessor2_0
-from torch import device, cuda, no_grad
+from torch import device, cuda, no_grad, float16
 from torch import float16, manual_seed
-import torch
 from typing import List, Literal
 from PIL import Image
 import cv2
 import random
+
+import torch
 
 
 class CustomDiffuser:
@@ -57,14 +58,31 @@ class CustomDiffuser:
             safety_checker=None
     ):
         pipe = self.pipe_inpaint_controlnet
-        controlnet_lineart = ControlNetModel.from_pretrained(controlnet_paths[0], safety_checker=safety_checker) 
-        controlnet_normals = ControlNetModel.from_pretrained(controlnet_paths[1], safety_checker=safety_checker)
-        controlnet = MultiControlNetModel([controlnet_lineart, controlnet_normals])
+        
+        controlnet_lineart = ControlNetModel.from_pretrained(
+            controlnet_paths[0], 
+            safety_checker=safety_checker,
+            use_safetensors=True,
+            torch_dtype=float16,
+            variant='fp16'
+        )#.to('cpu') 
+        controlnet_normals = ControlNetModel.from_pretrained(
+            controlnet_paths[1], 
+            safety_checker=safety_checker,
+            use_safetensors=True,
+            torch_dtype=float16,
+            variant='fp16'
+        )#.to('cpu')
+
+        controlnet = MultiControlNetModel([controlnet_lineart, controlnet_normals]).to('cpu')
         self.pipe_inpaint_controlnet = StableDiffusionControlNetInpaintPipeline.from_pretrained(
             diffusor_path,
             controlnet=controlnet,
-            #torch_dtype=float16, #apparently this doesn't work even thought it's literally in the docu...
-            safety_checker=safety_checker
+            torch_dtype=float16, 
+            safety_checker=safety_checker,
+            use_safetensors=True,
+            # variant='fp16',
+            # revision='main'
         )
 
         self.pipe_inpaint_controlnet.scheduler = UniPCMultistepScheduler.from_config(self.pipe_inpaint_controlnet.scheduler.config)
@@ -74,20 +92,17 @@ class CustomDiffuser:
         self.pipe_inpaint_controlnet.enable_xformers_memory_efficient_attention()
         self.pipe_inpaint_controlnet.enable_attention_slicing()
 
+        #self.pipe_inpaint_controlnet.to("cpu")   #fp16 can't run on cpu
         gc.collect()
         with no_grad():
             cuda.empty_cache()
 
-        controlnet.to("cpu")
-        self.pipe_inpaint_controlnet.to("cpu")
-        gc.collect()
-        with no_grad():
-            cuda.empty_cache()
-        cuda.empty_cache()
+        #self.pipe_inpaint_controlnet.enable_model_cpu_offload()
 
         # controlnet.to("cuda:0")
         # self.pipe_inpaint_controlnet.to("cuda:0")
 
+        return self.pipe_inpaint_controlnet
 
 
     def inpaint_with_controlnet(
@@ -127,6 +142,12 @@ class CustomDiffuser:
             control_image=resized_control_images, # it sees the colelction of control images i.e. canny image and normal image as a batch of images, not something that would be passed to each controlnet
             mask_image=mask           
         ).images[0]
+
+        #self.pipe_inpaint_controlnet.to("cpu")
+        # gc.collect()
+        # with no_grad():
+        #     cuda.empty_cache()
+
 
         return generated_image
 
