@@ -9,12 +9,12 @@ from diffusers import (
 )
 from diffusers.pipelines.controlnet import MultiControlNetModel
 from diffusers.models.attention_processor import AttnProcessor2_0
-from torch import device, cuda, no_grad, float16
+from torch import Generator, device, cuda, no_grad, float16
 from torch import float16, manual_seed
 from typing import List, Literal
 from PIL import Image
 import cv2
-import random
+from random import randint
 
 import torch
 
@@ -132,8 +132,12 @@ class CustomDiffuser:
         #test
         self.pipe_inpaint_controlnet.to("cuda:0") # this in tandem with switching the pipe to CPU in the loader WORKS!
 
-
-        generator = manual_seed(-1)
+        #generator = Generator(device=device('cuda:0')) 
+        # seed = generator.seed()
+        seed = randint(100000000000000, 999999999999999)
+        print("SEED:     ", seed)
+        generator = manual_seed(seed)#-1)
+        print("SEED FROM GEN:   ", generator.seed())
         generated_image = self.pipe_inpaint_controlnet(
             prompt,
             num_inference_steps=steps, #pass argument
